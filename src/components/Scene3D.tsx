@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import type { Line2 } from 'three-stdlib';
-import type { Frame, ManeuverRun } from '../engine/types';
+import type { Frame, ManeuverRun, RunwaySpec, SceneLabel } from '../engine/types';
 import { D2R, FT, angDiff, sampleAt } from '../engine/kinematics';
 import { playback } from '../store/playback';
 import { Skyhawk } from './Skyhawk';
@@ -14,15 +14,17 @@ export type ViewMode = 'chase' | 'side' | 'top';
 const SKY = '#a9c7e3';
 const MAGENTA = '#e23ad8';
 
+/** Height of the airplane's origin above its wheels, so it sits on the runway. */
+const GEAR_HEIGHT = 1.45;
 const toWorld = (f: Pick<Frame, 'east' | 'north' | 'altFt'>, elevFt: number, out = new THREE.Vector3()) =>
-  out.set(f.east, (f.altFt - elevFt) * FT, -f.north);
+  out.set(f.east, (f.altFt - elevFt) * FT + GEAR_HEIGHT, -f.north);
 
 export function Scene3D({ run, mode }: { run: ManeuverRun; mode: ViewMode }) {
   return (
     <Canvas
       dpr={[1, 2]}
-      camera={{ fov: 50, near: 0.5, far: 40000, position: [0, 300, 60] }}
-      gl={{ antialias: true }}
+      camera={{ fov: 50, near: 1, far: 40000, position: [0, 300, 60] }}
+      gl={{ antialias: true, logarithmicDepthBuffer: true }}
       style={{ touchAction: 'none' }}
     >
       <color attach="background" args={[SKY]} />
@@ -70,6 +72,8 @@ function World({ run, mode }: { run: ManeuverRun; mode: ViewMode }) {
     <>
       <Ground />
       {run.scene.roads.map((r, i) => <RoadStrip key={i} {...r} />)}
+      {run.scene.runways?.map((r, i) => <Runway key={i} {...r} />)}
+      {run.scene.labels?.map((l, i) => <LegLabel key={i} label={l} elevFt={elev} />)}
       {run.scene.wind && <WindArrow fromDeg={run.scene.wind.fromDeg} kt={run.scene.wind.kt} at={[run.scene.frameCenter[0] - 700, -run.scene.frameCenter[1] - 500]} />}
 
       {/* Planned path (faint) and flown path (magenta, like a G1000 active leg). */}
@@ -199,9 +203,9 @@ function RoadStrip({ from, to, width }: { from: [number, number]; to: [number, n
   const len = Math.hypot(to[0] - from[0], to[1] - from[1]);
   const ang = Math.atan2(to[1] - from[1], to[0] - from[0]);
   return (
-    <mesh position={[(from[0] + to[0]) / 2, 0.2, -(from[1] + to[1]) / 2]} rotation={[-Math.PI / 2, 0, ang]}>
+    <mesh position={[(from[0] + to[0]) / 2, 0.3, -(from[1] + to[1]) / 2]} rotation={[-Math.PI / 2, 0, ang]} renderOrder={2}>
       <planeGeometry args={[len, width]} />
-      <meshStandardMaterial color="#5d5a55" roughness={1} />
+      <meshStandardMaterial color="#5d5a55" roughness={1} {...overlay(2)} />
     </mesh>
   );
 }
@@ -224,6 +228,126 @@ function WindArrow({ fromDeg, kt, at }: { fromDeg: number; kt: number; at: [numb
       <Html position={[0, 40, 0]} center distanceFactor={2400} zIndexRange={[5, 0]}>
         <div className="wind-tag">Wind {String(fromDeg).padStart(3, '0')}° at {kt} kt</div>
       </Html>
+    </group>
+  );
+}
+
+function LegLabel({ label, elevFt }: { label: SceneLabel; elevFt: number }) {
+  return (
+    <Html position={[label.east, (label.altFt - elevFt) * FT, -label.north]} center zIndexRange={[5, 0]}>
+      <div className="leg-tag">{label.text}</div>
+    </Html>
+  );
+}
+
+/**
+ * Runway with FAA non-precision markings: threshold bars, runway numbers,
+ * dashed centerline and aiming-point markers 1,000 ft in. Plus a mown
+ * safety area and a full-length parallel taxiway on the left of the low end.
+ */
+/** Ground overlays: drawn after the terrain and pulled toward the camera so they never flicker or vanish at shallow angles. */
+const overlay = (layer: number) => ({ polygonOffset: true, polygonOffsetFactor: -layer, polygonOffsetUnits: -4 * layer, depthWrite: false });
+
+function Runway({ center, heading, lengthM, widthM, ends }: RunwaySpec) {
+  const tex = useMemo(() => {
+    const W = 256, H = 4096;
+    const pxW = W / widthM, pxL = H / lengthM;
+    const ft = 0.3048;
+    const c = document.createElement('canvas');
+    c.width = W; c.height = H;
+    const g = c.getContext('2d')!;
+    g.fillStyle = '#b9b7b1';
+    g.fillRect(0, 0, W, H);
+    // Concrete panel joints
+    g.strokeStyle = 'rgba(90,88,84,0.25)';
+    g.lineWidth = 1;
+    for (let x = W / 4; x < W; x += W / 4) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, H); g.stroke(); }
+    for (let y = 0; y < H; y += 6 * pxL) { g.beginPath(); g.moveTo(0, y); g.lineTo(W, y); g.stroke(); }
+    // Tire marks in the touchdown zones
+    g.fillStyle = 'rgba(40,38,36,0.18)';
+    for (const sgn of [1, -1]) {
+      const y0 = sgn === 1 ? H - 900 * ft * pxL : 900 * ft * pxL;
+      g.fillRect(W / 2 - 22, Math.min(y0, y0 - sgn * 500 * ft * pxL), 44, 500 * ft * pxL);
+    }
+    g.fillStyle = '#fafafa';
+    const stripeW = 5.75 * ft * pxW, stripeL = 150 * ft * pxL;
+    const margin = 6 * ft * pxL;
+    const drawEnd = (bottom: boolean, label: string) => {
+      // y measured from the threshold toward the runway middle
+      const Y = (d: number, len: number) => (bottom ? H - d - len : d);
+      // Threshold bars: 8 stripes for a 100 ft runway, 4 each side of centre.
+      const gap = (W - 8 * stripeW) / 11;           // wider gap in the middle for the centerline
+      for (let i = 0; i < 8; i++) {
+        const x = gap + i * (stripeW + gap) + (i >= 4 ? gap : 0);
+        g.fillRect(x, Y(margin, stripeL), stripeW, stripeL);
+      }
+      // Runway number, 60 ft tall, 20 ft after the bars.
+      const numTop = margin + stripeL + 20 * ft * pxL;
+      const numH = 60 * ft * pxL;
+      g.save();
+      g.translate(W / 2, bottom ? H - numTop - numH / 2 : numTop + numH / 2);
+      if (!bottom) g.rotate(Math.PI);
+      g.scale(1, numH / 120);
+      g.font = 'bold 150px Arial, sans-serif';
+      g.textAlign = 'center';
+      g.textBaseline = 'middle';
+      g.fillText(label, 0, 6);
+      g.restore();
+      // Aiming point: two broad bars starting 1,020 ft from the threshold.
+      const apL = 150 * ft * pxL, apW = 20 * ft * pxW;
+      g.fillRect(W / 2 - 36 * ft * pxW - apW, Y(1020 * ft * pxL, apL), apW, apL);
+      g.fillRect(W / 2 + 36 * ft * pxW, Y(1020 * ft * pxL, apL), apW, apL);
+    };
+    drawEnd(true, ends[0].replace(/^0/, ''));
+    drawEnd(false, ends[1].replace(/^0/, ''));
+    // Centerline: 120 ft stripes, 80 ft gaps, between the numbers.
+    const clW = Math.max(2, 3 * ft * pxW);
+    const startD = margin + 150 * ft * pxL + 100 * ft * pxL;
+    for (let y = startD; y < H - startD - 120 * ft * pxL; y += 200 * ft * pxL) {
+      g.fillRect(W / 2 - clW / 2, y, clW, 120 * ft * pxL);
+    }
+    const t = new THREE.CanvasTexture(c);
+    t.anisotropy = 16;
+    t.colorSpace = THREE.SRGBColorSpace;
+    return t;
+  }, [lengthM, widthM, ends]);
+
+  // Plane +Y is the runway's low-end → high-end direction after rotation.
+  const rotY = -heading * D2R;
+  const [ce, cn] = center;
+  const twy = 120;
+  return (
+    <group position={[ce, 0, -cn]} rotation={[0, rotY, 0]}>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.15, 0]} renderOrder={1}>
+        <planeGeometry args={[150, lengthM + 300]} />
+        <meshStandardMaterial color="#86a35e" roughness={1} {...overlay(1)} />
+      </mesh>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.5, 0]} renderOrder={3}>
+        <planeGeometry args={[widthM, lengthM]} />
+        <meshStandardMaterial map={tex} roughness={0.95} {...overlay(3)} />
+      </mesh>
+      {/* Parallel taxiway and connectors */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[-twy, 0.3, 0]} renderOrder={2}>
+        <planeGeometry args={[11, lengthM]} />
+        <meshStandardMaterial color="#8f8d88" roughness={1} {...overlay(2)} />
+      </mesh>
+      {[-0.5, -0.17, 0.17, 0.5].map((k) => (
+        <mesh key={k} rotation={[-Math.PI / 2, 0, 0]} position={[-twy / 2, 0.3, -k * lengthM]} renderOrder={2}>
+          <planeGeometry args={[twy, 11]} />
+          <meshStandardMaterial color="#8f8d88" roughness={1} {...overlay(2)} />
+        </mesh>
+      ))}
+      {/* Apron and a few hangars beside the taxiway's midpoint */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[-twy - 90, 0.3, 60]} renderOrder={2}>
+        <planeGeometry args={[150, 220]} />
+        <meshStandardMaterial color="#9a9893" roughness={1} {...overlay(2)} />
+      </mesh>
+      {[0, 1, 2].map((i) => (
+        <mesh key={i} position={[-twy - 150, 5, -20 + i * 55]}>
+          <boxGeometry args={[30, 10, 40]} />
+          <meshStandardMaterial color={i === 1 ? '#c9ccd0' : '#a9b0b8'} roughness={0.7} />
+        </mesh>
+      ))}
     </group>
   );
 }

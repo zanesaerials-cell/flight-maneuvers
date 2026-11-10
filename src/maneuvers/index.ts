@@ -2,6 +2,7 @@ import type { AircraftProfile } from '../data/aircraft';
 import type { ManeuverRun } from '../engine/types';
 import { buildSteepTurns } from './steepTurns';
 import { buildSTurns } from './sTurns';
+import { buildPattern } from './pattern';
 
 export interface ManeuverDef {
   id: string;
@@ -16,6 +17,7 @@ export interface ManeuverDef {
 
 /** Private Pilot ACS (FAA-S-ACS-6C) maneuvers, in checkride order. */
 export const MANEUVERS: ManeuverDef[] = [
+  { id: 'traffic-pattern', title: 'Pattern Lap — Conway (KCXW) Rwy 22', acsCode: 'PA.III.B', group: 'Takeoffs and landings', summary: 'Takeoff, all four legs, flaps and power at each point, landing.', build: (ac) => buildPattern(ac), needs: 'pattern' },
   { id: 'normal-takeoff', title: 'Normal Takeoff and Climb', acsCode: 'PA.IV.A', group: 'Takeoffs and landings', summary: 'Rotation, Vy climb, traffic pattern departure.' },
   { id: 'normal-landing', title: 'Normal Approach and Landing', acsCode: 'PA.IV.B', group: 'Takeoffs and landings', summary: 'Stabilized approach, flare and touchdown.' },
   { id: 'soft-takeoff', title: 'Soft-Field Takeoff and Climb', acsCode: 'PA.IV.C', group: 'Takeoffs and landings', summary: 'Weight off the nosewheel, ground effect acceleration.' },

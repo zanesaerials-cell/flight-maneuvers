@@ -62,9 +62,23 @@ export interface Tolerance {
 
 export interface Road { from: [number, number]; to: [number, number]; width: number }
 
+export interface RunwaySpec {
+  /** Centre of the runway, metres east/north of the scene origin. */
+  center: [number, number];
+  /** Heading of the low-numbered end, degrees (scene north). */
+  heading: number;
+  lengthM: number;
+  widthM: number;
+  ends: [string, string];
+}
+
+export interface SceneLabel { east: number; north: number; altFt: number; text: string }
+
 export interface SceneSpec {
   groundElevFt: number;
   roads: Road[];
+  runways?: RunwaySpec[];
+  labels?: SceneLabel[];
   /** Radius (m) the top-down camera should frame. */
   frameRadius: number;
   /** Centre (east, north) the top-down camera should frame. */

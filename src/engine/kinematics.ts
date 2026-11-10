@@ -38,6 +38,12 @@ export interface RawSample {
   tas: number;
   rpm: number;
   flaps: number;
+  /** Optional overrides for phases the generic model does not cover (ground roll, rotation, flare). */
+  pitch?: number;
+  elevBias?: number;
+  rudderBias?: number;
+  throttle?: number;
+  trim?: number;
 }
 
 export interface FinalizeOptions {
@@ -74,7 +80,7 @@ export function finalize(raw: RawSample[], ac: AircraftProfile, opts: FinalizeOp
     const levelPitch = 1.5 + (95 - s.ias) * 0.15 - s.flaps * 0.08;
     const aoaInTurn = 3.0 * (loadFactor - 1) / (Math.SQRT2 - 1);
     const climb = Math.atan2(vsi * FT / 60, s.tas * KT) * R2D;
-    const pitch = levelPitch + aoaInTurn + climb;
+    const pitch = s.pitch ?? levelPitch + aoaInTurn + climb;
 
     const powerAbove = (s.rpm - opts.cruiseRpm) / 100;
     const c: ControlState = {
@@ -82,14 +88,15 @@ export function finalize(raw: RawSample[], ac: AircraftProfile, opts: FinalizeOp
       // opposite aileron stops the overbanking tendency.
       aileron: clamp(rollRate / 22, -1, 1) - Math.sign(s.bank) * 0.07 * smoothstep(25, 45, Math.abs(s.bank)),
       // Back pressure to make the extra lift a bank demands.
-      elevator: clamp(0.55 * (loadFactor - 1) + vsi / 4000, -1, 1),
+      // Scripts that manage trim pass elevBias; otherwise climb/descent needs a little pressure.
+      elevator: clamp(0.55 * (loadFactor - 1) + (s.elevBias ?? vsi / 4000), -1, 1),
       // Rudder with aileron to cancel adverse yaw, plus a touch of right
       // rudder when power comes up (P-factor / slipstream).
-      rudder: clamp(rollRate / 30 + 0.05 * powerAbove, -1, 1),
-      throttle: clamp((s.rpm - ac.rpm.idle) / (ac.rpm.max - ac.rpm.idle), 0, 1),
+      rudder: clamp(rollRate / 30 + 0.05 * Math.max(0, powerAbove) + (s.rudderBias ?? 0), -1, 1),
+      throttle: s.throttle ?? clamp((s.rpm - ac.rpm.idle) / (ac.rpm.max - ac.rpm.idle), 0, 1),
       mixture: 1,
       flaps: s.flaps,
-      trim: opts.trim,
+      trim: s.trim ?? opts.trim,
     };
 
     return {
@@ -153,6 +160,11 @@ export function resample(samples: RawSample[], dt: number): RawSample[] {
       altFt: lerp(a.altFt, b.altFt, u), heading: lerpAngle(a.heading, b.heading, u),
       bank: lerp(a.bank, b.bank, u), ias: lerp(a.ias, b.ias, u), tas: lerp(a.tas, b.tas, u),
       rpm: lerp(a.rpm, b.rpm, u), flaps: lerp(a.flaps, b.flaps, u),
+      ...(a.pitch !== undefined && b.pitch !== undefined ? { pitch: lerp(a.pitch, b.pitch, u) } : {}),
+      ...(a.elevBias !== undefined ? { elevBias: lerp(a.elevBias, b.elevBias ?? a.elevBias, u) } : {}),
+      ...(a.rudderBias !== undefined ? { rudderBias: lerp(a.rudderBias, b.rudderBias ?? a.rudderBias, u) } : {}),
+      ...(a.throttle !== undefined ? { throttle: lerp(a.throttle, b.throttle ?? a.throttle, u) } : {}),
+      ...(a.trim !== undefined ? { trim: lerp(a.trim, b.trim ?? a.trim, u) } : {}),
     });
   }
   return out;

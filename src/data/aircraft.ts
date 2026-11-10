@@ -31,6 +31,30 @@ export interface GroundRefSettings {
   windKt: number;
 }
 
+export interface PatternSettings {
+  takeoffFlaps: number;
+  groundAccel: number;      // m/s², sea-level standard day, max weight
+  rotateKias: number;
+  liftoffKias: number;
+  climbKias: number;        // Vy for the pattern climb
+  climbFpm: number;
+  takeoffRpm: number;       // static full-throttle
+  climbRpm: number;         // full throttle at climb speed
+  downwindKias: number;
+  downwindRpm: number;
+  abeamRpm: number;
+  abeamFlaps: number;
+  abeamKias: number;
+  baseFlaps: number;
+  baseKias: number;
+  finalFlaps: number;
+  finalKias: number;
+  touchdownKias: number;
+  turnBankDeg: number;
+  downwindOffsetM: number;  // distance from runway centerline to downwind leg
+  landingDecel: number;     // m/s² with moderate braking
+}
+
 export interface AircraftProfile {
   id: 'c172s' | 'p-mentor' | 'da42';
   name: string;
@@ -54,6 +78,7 @@ export interface AircraftProfile {
   procedures: {
     steepTurns?: SteepTurnSettings;
     sTurns?: GroundRefSettings;
+    pattern?: PatternSettings;
   };
 }
 
@@ -100,6 +125,29 @@ export const C172S: AircraftProfile = {
       radiusM: 330,
       windFromDeg: 360,
       windKt: 10,
+    },
+    pattern: {
+      takeoffFlaps: 0,
+      groundAccel: 1.35,
+      rotateKias: 55,
+      liftoffKias: 58,
+      climbKias: 74,
+      climbFpm: 700,
+      takeoffRpm: 2350,
+      climbRpm: 2500,
+      downwindKias: 90,
+      downwindRpm: 2200,
+      abeamRpm: 1500,
+      abeamFlaps: 10,
+      abeamKias: 80,
+      baseFlaps: 20,
+      baseKias: 75,
+      finalFlaps: 30,
+      finalKias: 65,
+      touchdownKias: 48,
+      turnBankDeg: 20,
+      downwindOffsetM: 1300,
+      landingDecel: 2.2,
     },
   },
 };

@@ -65,13 +65,15 @@ export function AcsPanel({ run, f }: { run: ManeuverRun; f: Frame }) {
               <div className="tol-row">
                 <span className="tol-label">{tol.label}</span>
                 <span className="tol-std">{tol.standard}</span>
-                <span className="tol-val">{shown}{tol.unit === '°' ? '°' : ` ${tol.unit}`}</span>
+                <span className="tol-val">{judged ? <>{shown}{tol.unit === '°' ? '°' : ` ${tol.unit}`}</> : '—'}</span>
               </div>
-              <div className="tol-bar" aria-hidden>
-                <span className="tol-band" style={{ left: `${pos(lo)}%`, width: `${pos(hi) - pos(lo)}%` }} />
-                <span className="tol-target" style={{ left: `${pos(tol.target)}%` }} />
-                <span className="tol-needle" style={{ left: `${pos(v)}%` }} />
-              </div>
+              {judged && (
+                <div className="tol-bar" aria-hidden>
+                  <span className="tol-band" style={{ left: `${pos(lo)}%`, width: `${pos(hi) - pos(lo)}%` }} />
+                  <span className="tol-target" style={{ left: `${pos(tol.target)}%` }} />
+                  <span className="tol-needle" style={{ left: `${pos(v)}%` }} />
+                </div>
+              )}
               {!judged && <span className="tol-note">Judged {describeWindows(run, tol.windows)}</span>}
             </div>
           );
@@ -82,7 +84,7 @@ export function AcsPanel({ run, f }: { run: ManeuverRun; f: Frame }) {
 }
 
 function describeWindows(run: ManeuverRun, w: [number, number][]) {
-  const names = w.map(([a]) => run.steps[activeStepIndex(run, a + 0.01)]?.title.toLowerCase()).filter(Boolean);
+  const names = w.map(([a]) => run.steps[activeStepIndex(run, a + 0.01)]?.title).filter(Boolean);
   return names.length ? `from “${names[0]}”${names.length > 1 ? ' and again later' : ''}` : 'during the maneuver';
 }
 
