@@ -55,6 +55,40 @@ export interface PatternSettings {
   landingDecel: number;     // m/s² with moderate braking
 }
 
+/** Numbers for the takeoff/landing variants, slow flight, stalls and emergencies. */
+export interface PerfSettings {
+  airworkAltFt: number;          // MSL for airwork
+  airworkGroundFt: number;       // terrain under airwork
+  // Short field
+  shortTakeoffFlaps: number;
+  shortObstacleKias: number;     // climb speed until a 50 ft obstacle is cleared
+  shortApproachKias: number;
+  shortTouchdownKias: number;
+  // Soft field
+  softTakeoffFlaps: number;
+  softLiftoffKias: number;
+  softApproachKias: number;
+  softTouchdownKias: number;
+  // Go-around (balked landing)
+  balkedFlaps: number;
+  balkedClimbKias: number;
+  balkedFlapsUpKias: number;
+  // Forward slip
+  slipFlaps: number;
+  slipKias: number;
+  // Slow flight and stalls
+  slowFlightKias: number;        // full flaps, a few knots above the stall warning
+  slowFlightRpm: number;
+  stallFlaps30Kias: number;      // indicated, power off
+  stallCleanKias: number;
+  stallWarnMarginKt: number;     // horn sounds this far above the stall
+  powerOnStallRpm: number;
+  // Emergencies
+  emergencyDescentKias: number;
+  emergencyDescentBank: number;
+  glideFpm: number;              // clean, at best glide
+}
+
 export interface AircraftProfile {
   id: 'c172s' | 'p-mentor' | 'da42';
   name: string;
@@ -79,6 +113,7 @@ export interface AircraftProfile {
     steepTurns?: SteepTurnSettings;
     sTurns?: GroundRefSettings;
     pattern?: PatternSettings;
+    perf?: PerfSettings;
   };
 }
 
@@ -148,6 +183,32 @@ export const C172S: AircraftProfile = {
       turnBankDeg: 20,
       downwindOffsetM: 1300,
       landingDecel: 2.2,
+    },
+    perf: {
+      airworkAltFt: 3000,
+      airworkGroundFt: 1000,
+      shortTakeoffFlaps: 10,
+      shortObstacleKias: 56,
+      shortApproachKias: 61,
+      shortTouchdownKias: 45,
+      softTakeoffFlaps: 10,
+      softLiftoffKias: 45,
+      softApproachKias: 61,
+      softTouchdownKias: 42,
+      balkedFlaps: 20,
+      balkedClimbKias: 60,
+      balkedFlapsUpKias: 65,
+      slipFlaps: 0,
+      slipKias: 65,
+      slowFlightKias: 50,
+      slowFlightRpm: 1950,
+      stallFlaps30Kias: 40,
+      stallCleanKias: 48,
+      stallWarnMarginKt: 6,
+      powerOnStallRpm: 2300,
+      emergencyDescentKias: 120,
+      emergencyDescentBank: 40,
+      glideFpm: 700,
     },
   },
 };

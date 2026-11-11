@@ -390,7 +390,7 @@ export function buildPattern(ac: AircraftProfile, apt: AirportDef = KCXW, runway
     {
       id: 'climb', label: 'Climb speed (Vy)', unit: 'kt', standard: '+10 / −5 kt',
       value: (f) => f.ias, target: p.climbKias, minus: 5, plus: 10,
-      windows: [[marks.vy, marks.crosswindTurn]],
+      windows: [[marks.vy + 5, marks.crosswindTurn]],
     },
     {
       id: 'tpa', label: 'Pattern altitude', unit: 'ft', standard: '±100 ft',
@@ -400,7 +400,7 @@ export function buildPattern(ac: AircraftProfile, apt: AirportDef = KCXW, runway
     {
       id: 'dwspd', label: 'Downwind airspeed', unit: 'kt', standard: '±10 kt',
       value: (f) => f.ias, target: p.downwindKias, minus: 10, plus: 10,
-      windows: [[marks.downwind, marks.abeam]],
+      windows: [[marks.downwind + 5, marks.abeam - 0.5]],
     },
     {
       id: 'final', label: 'Approach speed', unit: 'kt', standard: '+10 / −5 kt',

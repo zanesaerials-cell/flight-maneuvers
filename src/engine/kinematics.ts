@@ -42,6 +42,9 @@ export interface RawSample {
   pitch?: number;
   elevBias?: number;
   rudderBias?: number;
+  aileronBias?: number;
+  slip?: number;
+  warn?: string;
   throttle?: number;
   trim?: number;
 }
@@ -86,7 +89,7 @@ export function finalize(raw: RawSample[], ac: AircraftProfile, opts: FinalizeOp
     const c: ControlState = {
       // Roll rate needs aileron; once established in a steep bank a little
       // opposite aileron stops the overbanking tendency.
-      aileron: clamp(rollRate / 22, -1, 1) - Math.sign(s.bank) * 0.07 * smoothstep(25, 45, Math.abs(s.bank)),
+      aileron: clamp(rollRate / 22 - Math.sign(s.bank) * 0.07 * smoothstep(25, 45, Math.abs(s.bank)) + (s.aileronBias ?? 0), -1, 1),
       // Back pressure to make the extra lift a bank demands.
       // Scripts that manage trim pass elevBias; otherwise climb/descent needs a little pressure.
       elevator: clamp(0.55 * (loadFactor - 1) + (s.elevBias ?? vsi / 4000), -1, 1),
@@ -101,15 +104,16 @@ export function finalize(raw: RawSample[], ac: AircraftProfile, opts: FinalizeOp
 
     return {
       t: s.t, east: s.east, north: s.north, altFt: s.altFt,
-      heading: wrap360(s.heading), track, pitch, bank: s.bank, slip: 0,
+      heading: wrap360(s.heading), track, pitch, bank: s.bank, slip: s.slip ?? 0,
       ias: s.ias, tas: s.tas, gs: gsMs / KT, vsi, rpm: s.rpm,
       turnRate, loadFactor, c,
+      ...(s.warn ? { warn: s.warn } : {}),
     };
   });
 
   // Gentle smoothing of control inputs so the yoke and pedals move like hands and feet.
   const win = 4;
-  const keys: (keyof ControlState)[] = ['aileron', 'elevator', 'rudder'];
+  const keys: (keyof ControlState)[] = ['aileron', 'elevator', 'rudder', 'throttle', 'trim'];
   const smoothed = frames.map((f, i) => {
     const c = { ...f.c };
     for (const k of keys) {
@@ -142,6 +146,7 @@ export function sampleAt(frames: Frame[], dt: number, t: number): Frame {
     pitch: L('pitch'), bank: L('bank'), slip: L('slip'),
     ias: L('ias'), tas: L('tas'), gs: L('gs'), vsi: L('vsi'), rpm: L('rpm'),
     turnRate: L('turnRate'), loadFactor: L('loadFactor'), c,
+    ...(a.warn ? { warn: a.warn } : {}),
   };
 }
 

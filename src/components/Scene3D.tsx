@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import type { Line2 } from 'three-stdlib';
-import type { Frame, ManeuverRun, RunwaySpec, SceneLabel } from '../engine/types';
+import type { Frame, ManeuverRun, RunwaySpec, SceneLabel, SceneMarker } from '../engine/types';
 import { D2R, FT, angDiff, sampleAt } from '../engine/kinematics';
 import { playback } from '../store/playback';
 import { C172Model, WHEEL_CONTACTS } from './C172Model';
@@ -104,6 +104,7 @@ function World({ run, mode }: { run: ManeuverRun; mode: ViewMode }) {
       {run.scene.roads.map((r, i) => <RoadStrip key={i} {...r} />)}
       {run.scene.runways?.map((r, i) => <Runway key={i} {...r} />)}
       {run.scene.labels?.map((l, i) => <LegLabel key={i} label={l} elevFt={elev} />)}
+      {run.scene.markers?.map((m, i) => <Marker key={i} {...m} />)}
       {run.scene.wind && <WindArrow fromDeg={run.scene.wind.fromDeg} kt={run.scene.wind.kt} at={[run.scene.frameCenter[0] - 700, -run.scene.frameCenter[1] - 500]} />}
 
       {/* Planned path (faint) and flown path (magenta, like a G1000 active leg). */}
@@ -380,6 +381,28 @@ function Runway({ center, heading, lengthM, widthM, ends }: RunwaySpec) {
           <meshStandardMaterial color={i === 1 ? '#c9ccd0' : '#a9b0b8'} roughness={0.7} />
         </mesh>
       ))}
+    </group>
+  );
+}
+
+/** Ground features a maneuver refers to: a silo for turns around a point, a field for the rectangular course or a forced landing. */
+function Marker({ east, north, kind, width = 100, length = 400, heading = 0 }: SceneMarker) {
+  if (kind === 'silo') {
+    return (
+      <group position={[east, 0, -north]}>
+        <mesh position={[0, 11, 0]}><cylinderGeometry args={[3.2, 3.2, 22, 20]} /><meshStandardMaterial color="#c9c3b8" roughness={0.8} /></mesh>
+        <mesh position={[0, 22, 0]}><sphereGeometry args={[3.2, 20, 10, 0, Math.PI * 2, 0, Math.PI / 2]} /><meshStandardMaterial color="#8e9aa5" roughness={0.5} metalness={0.3} /></mesh>
+        <mesh position={[9, 4, 3]}><boxGeometry args={[10, 8, 14]} /><meshStandardMaterial color="#a33a2c" roughness={0.9} /></mesh>
+        <mesh position={[9, 9.5, 3]} rotation={[0, 0, Math.PI / 4]}><boxGeometry args={[7.2, 7.2, 14.2]} /><meshStandardMaterial color="#4a4f55" roughness={0.9} /></mesh>
+      </group>
+    );
+  }
+  return (
+    <group position={[east, 0, -north]} rotation={[0, -heading * D2R, 0]}>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.12, 0]} renderOrder={1}>
+        <planeGeometry args={[width, length, 2, 20]} />
+        <meshStandardMaterial color="#a7b46f" roughness={1} {...overlay(1)} />
+      </mesh>
     </group>
   );
 }

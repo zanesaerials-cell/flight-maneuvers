@@ -94,6 +94,6 @@ The ailerons, flaps, elevator and rudder rotate about their real hinge lines. `W
 
 ## Content review
 
-The procedure text in `steepTurns.ts` / `sTurns.ts` is a **draft awaiting CFI review**, and every number in it comes from the aircraft profile. The ACS task codes in `maneuvers/index.ts` need to be checked against the current FAA-S-ACS-6 revision.
+All procedure text is a **draft awaiting CFI review**; every number comes from the aircraft profile. See `REVIEW.md` for a per-maneuver checklist. The ACS task codes in `maneuvers/index.ts` need to be checked against the current FAA-S-ACS-6 revision.
 
 For study and briefing only. The POH/AFM and your CFI govern.

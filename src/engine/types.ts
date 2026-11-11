@@ -35,6 +35,8 @@ export interface Frame {
   turnRate: number;  // deg/s, + right
   loadFactor: number;
   c: ControlState;
+  /** Cockpit warning in effect, e.g. the stall horn. */
+  warn?: string;
 }
 
 export interface Step {
@@ -74,11 +76,14 @@ export interface RunwaySpec {
 
 export interface SceneLabel { east: number; north: number; altFt: number; text: string }
 
+export interface SceneMarker { east: number; north: number; kind: 'silo' | 'field'; width?: number; length?: number; heading?: number; label?: string }
+
 export interface SceneSpec {
   groundElevFt: number;
   roads: Road[];
   runways?: RunwaySpec[];
   labels?: SceneLabel[];
+  markers?: SceneMarker[];
   /** Radius (m) the top-down camera should frame. */
   frameRadius: number;
   /** Centre (east, north) the top-down camera should frame. */

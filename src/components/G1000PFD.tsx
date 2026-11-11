@@ -30,6 +30,12 @@ export function G1000PFD({ f, run, ac }: { f: Frame; run: ManeuverRun; ac: Aircr
         <VSI f={f} />
         <HSI f={f} bug={run.bugs.heading} wind={run.scene.wind} />
         <TopBar ac={ac} run={run} />
+        {f.warn && (
+          <g>
+            <rect x={CX - 52} y={44} width="104" height="30" rx="3" fill="#d1121b" />
+            <text x={CX} y={66} fill="#fff" fontSize="20" fontWeight="700" textAnchor="middle" letterSpacing="2">{f.warn}</text>
+          </g>
+        )}
       </g>
     </svg>
   );
