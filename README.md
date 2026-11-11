@@ -47,7 +47,7 @@ src/
     sTurns.ts             PA.V.B, wind-solved ground track
   components/
     Scene3D.tsx           three.js scene, cameras, flight path, ground, roads, wind arrow
-    Skyhawk.tsx           Low-poly 172 with moving ailerons, flaps, elevator, rudder, prop
+    Cessna172.tsx         Procedural 172S to published dimensions; hinged surfaces, prop, gear contact points
     G1000PFD.tsx          SVG PFD
     ControlsPanel.tsx     Yoke/stick, pedals, throttle, mixture, flaps, trim
     Panels.tsx            Steps, ACS tolerances, transport bar
@@ -60,7 +60,18 @@ src/
 
 **Adding a maneuver** means writing a builder that returns a `ManeuverRun` and setting `build` and `needs` on its entry in `maneuvers/index.ts`.
 
-**Swapping in a real 172 model:** export a glTF/GLB with separate nodes for the ailerons, flaps, elevator, rudder and prop, each pivoting at its hinge line. Load it with drei `useGLTF`, then drive those nodes the same way `Skyhawk.tsx` does. The orientation convention is nose −Z, right wing +X, up +Y.
+**The airplane model** (`Cessna172.tsx`) is generated in code from 172S dimensions:
+- 8.28 m long, 11.0 m span, 1.63 → 1.13 m chord, 1.73° dihedral, 3° washout.
+- NACA 2412 wing and NACA 0009 tail sections.
+- A 1.93 m prop and a 2.54 m main gear track.
+
+The ailerons, flaps, elevator and rudder rotate about their real hinge lines. `WHEEL_CONTACTS` gives the tire contact points. The scene uses them to keep the tires exactly on the runway at any pitch, including rotation, flare and nosewheel-down rollout.
+
+**Using a purchased or licensed glTF instead:**
+1. Export with separate nodes for each aileron, flap, elevator half, the rudder and the prop, each with its pivot on the hinge line.
+2. Orient it nose −Z, right wing +X, up +Y, with the origin at the CG.
+3. Load it with drei `useGLTF` and drive those nodes as `Cessna172.tsx` does.
+4. Update `WHEEL_CONTACTS` to match the model's tires.
 
 ## Content review
 

@@ -204,9 +204,9 @@ export function buildPattern(ac: AircraftProfile, apt: AirportDef = KCXW, runway
   while (lateral(pos()) > xferFinal) tick();
   mark('finalTurn');
   turnTo(rwyHdg);
+  s.hdg = rwyHdg;
   mark('final');
   const finalStartIdx = raw.length - 1;
-  const lateralErr = lateral(pos());
   target.flaps = p.finalFlaps; target.ias = p.finalKias; target.trim = 0.45;
   // Final: stabilized, then flare and touch down at the touchdown point.
   while (along(pos()) < tdAlong) {
@@ -231,11 +231,14 @@ export function buildPattern(ac: AircraftProfile, apt: AirportDef = KCXW, runway
   for (let i = 0; i < 40; i++) tick(-1);
   mark('end');
 
-  // ---------- Remove the small lateral miss left by the final turn ----------
+  // ---------- Converge onto the centerline after the final turn ----------
+  // The turn rolls out within a few metres; blend that out over 10 s so
+  // the approach, touchdown and rollout are exactly on centerline.
   for (let i = finalStartIdx; i < raw.length; i++) {
-    const k = 1 - smoothstep(0, 10, raw[i].t - marks.final);
-    raw[i].east -= side.e * lateralErr * (1 - k);
-    raw[i].north -= side.n * lateralErr * (1 - k);
+    const k = smoothstep(0, 10, raw[i].t - marks.final);
+    const off = lateral({ e: raw[i].east, n: raw[i].north });
+    raw[i].east -= side.e * off * k;
+    raw[i].north -= side.n * off * k;
   }
 
   // ---------- Descent profile from abeam to touchdown ----------

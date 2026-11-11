@@ -7,24 +7,39 @@ import type { Line2 } from 'three-stdlib';
 import type { Frame, ManeuverRun, RunwaySpec, SceneLabel } from '../engine/types';
 import { D2R, FT, angDiff, sampleAt } from '../engine/kinematics';
 import { playback } from '../store/playback';
-import { Skyhawk } from './Skyhawk';
+import { Cessna172, WHEEL_CONTACTS } from './Cessna172';
 
 export type ViewMode = 'chase' | 'side' | 'top';
 
 const SKY = '#a9c7e3';
 const MAGENTA = '#e23ad8';
 
-/** Height of the airplane's origin above its wheels, so it sits on the runway. */
-const GEAR_HEIGHT = 1.45;
+/** Top of the runway paint layer; the tires rest exactly on it. */
+const SURFACE_Y = 0.3;
+/** Height of the airplane's centre of gravity above the tire contact points at zero pitch. */
+const CG_HEIGHT = -WHEEL_CONTACTS[0].y;
+/** Scene position of the CG. Altitude is measured to the wheels, so 0 ft AGL = tires on the runway. */
 const toWorld = (f: Pick<Frame, 'east' | 'north' | 'altFt'>, elevFt: number, out = new THREE.Vector3()) =>
-  out.set(f.east, (f.altFt - elevFt) * FT + GEAR_HEIGHT, -f.north);
+  out.set(f.east, (f.altFt - elevFt) * FT + SURFACE_Y + CG_HEIGHT, -f.north);
+
+const _contact = new THREE.Vector3();
+/**
+ * Lowest tire point below the CG for the airplane's current attitude.
+ * Used to keep the wheels exactly on the surface while pitched up in the
+ * flare, on rotation, or with the nosewheel down.
+ */
+function lowestWheel(rot: THREE.Euler, scale: number) {
+  let lo = Infinity;
+  for (const p of WHEEL_CONTACTS) lo = Math.min(lo, _contact.copy(p).multiplyScalar(scale).applyEuler(rot).y);
+  return lo;
+}
 
 export function Scene3D({ run, mode }: { run: ManeuverRun; mode: ViewMode }) {
   return (
     <Canvas
       dpr={[1, 2]}
-      camera={{ fov: 50, near: 1, far: 40000, position: [0, 300, 60] }}
-      gl={{ antialias: true, logarithmicDepthBuffer: true }}
+      camera={{ fov: 50, near: 1.5, far: 40000, position: [0, 300, 60] }}
+      gl={{ antialias: true }}
       style={{ touchAction: 'none' }}
     >
       <color attach="background" args={[SKY]} />
@@ -44,6 +59,18 @@ function World({ run, mode }: { run: ManeuverRun; mode: ViewMode }) {
   const shadow = useRef<THREE.Mesh>(null);
   const flown = useRef<Line2>(null);
 
+  const shadowTex = useMemo(() => {
+    // Soft high-wing silhouette: a wide ellipse for the wing over a narrow one for the fuselage.
+    const c = document.createElement('canvas');
+    c.width = 256; c.height = 192;
+    const g = c.getContext('2d')!;
+    g.filter = 'blur(6px)';
+    g.fillStyle = 'rgba(0,0,0,0.32)';
+    g.beginPath(); g.ellipse(128, 70, 118, 18, 0, 0, Math.PI * 2); g.fill();
+    g.beginPath(); g.ellipse(128, 100, 16, 82, 0, 0, Math.PI * 2); g.fill();
+    g.beginPath(); g.ellipse(128, 172, 40, 9, 0, 0, Math.PI * 2); g.fill();
+    return new THREE.CanvasTexture(c);
+  }, []);
   const pathPts = useMemo(() => run.frames.filter((_, i) => i % 4 === 0).map((f) => toWorld(f, elev)), [run, elev]);
   const groundPts = useMemo(() => pathPts.map((p) => new THREE.Vector3(p.x, 0.6, p.z)), [pathPts]);
 
@@ -52,12 +79,14 @@ function World({ run, mode }: { run: ManeuverRun; mode: ViewMode }) {
     frameRef.current = f;
     const g = plane.current;
     if (g) {
-      toWorld(f, elev, g.position);
+      const scale = mode === 'top' ? 9 : 1;
       g.rotation.set(f.pitch * D2R, -f.heading * D2R, -f.bank * D2R, 'YXZ');
-      g.scale.setScalar(mode === 'top' ? 9 : 1);
+      g.scale.setScalar(scale);
+      const agl = (f.altFt - elev) * FT;
+      g.position.set(f.east, SURFACE_Y + agl - lowestWheel(g.rotation, scale), -f.north);
     }
     if (shadow.current) {
-      shadow.current.position.set(f.east, 0.4, -f.north);
+      shadow.current.position.set(f.east, SURFACE_Y + 0.02, -f.north);
       shadow.current.rotation.set(-Math.PI / 2, 0, -f.heading * D2R);
       shadow.current.scale.setScalar(mode === 'top' ? 9 : 1);
     }
@@ -81,11 +110,11 @@ function World({ run, mode }: { run: ManeuverRun; mode: ViewMode }) {
       <Line ref={flown} points={pathPts} color={MAGENTA} lineWidth={3.5} />
       <Line points={groundPts} color="#3b2f45" lineWidth={1.5} transparent opacity={0.45} />
 
-      <mesh ref={shadow}>
-        <planeGeometry args={[11, 8]} />
-        <meshBasicMaterial color="#000" transparent opacity={0.22} depthWrite={false} />
+      <mesh ref={shadow} renderOrder={4}>
+        <planeGeometry args={[11.5, 8.6]} />
+        <meshBasicMaterial map={shadowTex} transparent depthWrite={false} polygonOffset polygonOffsetFactor={-5} polygonOffsetUnits={-20} />
       </mesh>
-      <group ref={plane}><Skyhawk getFrame={getFrame} /></group>
+      <group ref={plane}><Cessna172 getFrame={getFrame} /></group>
 
       <CameraRig run={run} mode={mode} getFrame={getFrame} />
     </>
@@ -192,8 +221,10 @@ function Ground() {
     return t;
   }, []);
   return (
+    // Subdivided: huge single triangles lose depth precision when clipped near the camera,
+    // which let the terrain show through the runway close to the airplane.
     <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]}>
-      <planeGeometry args={[40000, 40000]} />
+      <planeGeometry args={[40000, 40000, 100, 100]} />
       <meshStandardMaterial map={tex} roughness={1} />
     </mesh>
   );
@@ -246,7 +277,7 @@ function LegLabel({ label, elevFt }: { label: SceneLabel; elevFt: number }) {
  * safety area and a full-length parallel taxiway on the left of the low end.
  */
 /** Ground overlays: drawn after the terrain and pulled toward the camera so they never flicker or vanish at shallow angles. */
-const overlay = (layer: number) => ({ polygonOffset: true, polygonOffsetFactor: -layer, polygonOffsetUnits: -4 * layer, depthWrite: false });
+const overlay = (layer: number) => ({ polygonOffset: true, polygonOffsetFactor: -layer, polygonOffsetUnits: -4 * layer });
 
 function Runway({ center, heading, lengthM, widthM, ends }: RunwaySpec) {
   const tex = useMemo(() => {
@@ -276,7 +307,7 @@ function Runway({ center, heading, lengthM, widthM, ends }: RunwaySpec) {
       // y measured from the threshold toward the runway middle
       const Y = (d: number, len: number) => (bottom ? H - d - len : d);
       // Threshold bars: 8 stripes for a 100 ft runway, 4 each side of centre.
-      const gap = (W - 8 * stripeW) / 11;           // wider gap in the middle for the centerline
+      const gap = (W - 8 * stripeW) / 10;           // edge, seven gaps between bars (doubled at the centerline), edge
       for (let i = 0; i < 8; i++) {
         const x = gap + i * (stripeW + gap) + (i >= 4 ? gap : 0);
         g.fillRect(x, Y(margin, stripeL), stripeW, stripeL);
@@ -318,27 +349,27 @@ function Runway({ center, heading, lengthM, widthM, ends }: RunwaySpec) {
   const twy = 120;
   return (
     <group position={[ce, 0, -cn]} rotation={[0, rotY, 0]}>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.15, 0]} renderOrder={1}>
-        <planeGeometry args={[150, lengthM + 300]} />
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.1, 0]} renderOrder={1}>
+        <planeGeometry args={[150, lengthM + 300, 2, 80]} />
         <meshStandardMaterial color="#86a35e" roughness={1} {...overlay(1)} />
       </mesh>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.5, 0]} renderOrder={3}>
-        <planeGeometry args={[widthM, lengthM]} />
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, SURFACE_Y, 0]} renderOrder={3}>
+        <planeGeometry args={[widthM, lengthM, 2, 80]} />
         <meshStandardMaterial map={tex} roughness={0.95} {...overlay(3)} />
       </mesh>
       {/* Parallel taxiway and connectors */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[-twy, 0.3, 0]} renderOrder={2}>
-        <planeGeometry args={[11, lengthM]} />
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[-twy, 0.2, 0]} renderOrder={2}>
+        <planeGeometry args={[11, lengthM, 1, 80]} />
         <meshStandardMaterial color="#8f8d88" roughness={1} {...overlay(2)} />
       </mesh>
       {[-0.5, -0.17, 0.17, 0.5].map((k) => (
-        <mesh key={k} rotation={[-Math.PI / 2, 0, 0]} position={[-twy / 2, 0.3, -k * lengthM]} renderOrder={2}>
+        <mesh key={k} rotation={[-Math.PI / 2, 0, 0]} position={[-twy / 2, 0.2, -k * lengthM]} renderOrder={2}>
           <planeGeometry args={[twy, 11]} />
           <meshStandardMaterial color="#8f8d88" roughness={1} {...overlay(2)} />
         </mesh>
       ))}
       {/* Apron and a few hangars beside the taxiway's midpoint */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[-twy - 90, 0.3, 60]} renderOrder={2}>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[-twy - 90, 0.2, 60]} renderOrder={2}>
         <planeGeometry args={[150, 220]} />
         <meshStandardMaterial color="#9a9893" roughness={1} {...overlay(2)} />
       </mesh>
