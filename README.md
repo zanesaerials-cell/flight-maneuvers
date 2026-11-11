@@ -60,7 +60,26 @@ src/
 
 **Adding a maneuver** means writing a builder that returns a `ManeuverRun` and setting `build` and `needs` on its entry in `maneuvers/index.ts`.
 
-**The airplane model** (`Cessna172.tsx`) is generated in code from 172S dimensions:
+**The airplane model** is [“Cessna172”](https://sketchfab.com/3d-models/cessna172-d1b15841c29c43d0862667300bad55a4) by [KOG_THORNS](https://sketchfab.com/ioai25312), licensed [CC BY 4.0](http://creativecommons.org/licenses/by/4.0/). Credit appears on the home page and in the 3D view; keep it there. It lives at `public/models/c172s.glb` (4.2 MB), with its license in `public/models/LICENSE-c172s.txt`.
+
+`tools/prepare-c172s-model.mjs` converted the original Sketchfab download:
+- Re-oriented and scaled it to 172S dimensions, with the origin at the CG.
+- Named the ailerons, flaps, elevators, rudder, prop and gear.
+- Computed each hinge line and the tire contact points into `src/data/c172sRig.ts`.
+- Reduced textures to WebP and compressed the geometry with meshopt (44 MB → 4.2 MB).
+
+To re-run it:
+
+```bash
+npm i -D @gltf-transform/core @gltf-transform/functions @gltf-transform/extensions sharp meshoptimizer
+node tools/prepare-c172s-model.mjs path/to/scene.gltf public/models/c172s.glb rig.json
+```
+
+Then regenerate `src/data/c172sRig.ts` from `rig.json`.
+
+`C172Model.tsx` loads it and re-parents each control surface onto a pivot on its hinge line. While the file loads, or if it fails, the procedural fallback below is shown.
+
+**The procedural fallback** (`Cessna172.tsx`) is generated in code from 172S dimensions:
 - 8.28 m long, 11.0 m span, 1.63 → 1.13 m chord, 1.73° dihedral, 3° washout.
 - NACA 2412 wing and NACA 0009 tail sections.
 - A 1.93 m prop and a 2.54 m main gear track.

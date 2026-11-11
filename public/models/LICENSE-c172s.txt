@@ -1,0 +1,11 @@
+Cessna 172 3D model
+
+This work is based on "Cessna172"
+(https://sketchfab.com/3d-models/cessna172-d1b15841c29c43d0862667300bad55a4)
+by KOG_THORNS (https://sketchfab.com/ioai25312),
+licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/).
+
+Changes made for this app: re-oriented and scaled to 172S dimensions,
+origin moved to the centre of gravity, movable surfaces renamed and given
+hinge pivots, textures converted to WebP and reduced, geometry compressed
+with meshopt. Processing script: tools/prepare-c172s-model.mjs

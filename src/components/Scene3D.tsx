@@ -7,7 +7,7 @@ import type { Line2 } from 'three-stdlib';
 import type { Frame, ManeuverRun, RunwaySpec, SceneLabel } from '../engine/types';
 import { D2R, FT, angDiff, sampleAt } from '../engine/kinematics';
 import { playback } from '../store/playback';
-import { Cessna172, WHEEL_CONTACTS } from './Cessna172';
+import { C172Model, WHEEL_CONTACTS } from './C172Model';
 
 export type ViewMode = 'chase' | 'side' | 'top';
 
@@ -44,7 +44,8 @@ export function Scene3D({ run, mode }: { run: ManeuverRun; mode: ViewMode }) {
     >
       <color attach="background" args={[SKY]} />
       <fog attach="fog" args={[SKY, 2500, 14000]} />
-      <hemisphereLight args={['#dfeeff', '#4c5a3a', 0.9]} />
+      <hemisphereLight args={["#dfeeff", "#7d8a6a", 0.9]} />
+      <ambientLight intensity={0.35} />
       <directionalLight position={[-3000, 5000, 2000]} intensity={1.6} />
       <World run={run} mode={mode} />
     </Canvas>
@@ -114,7 +115,7 @@ function World({ run, mode }: { run: ManeuverRun; mode: ViewMode }) {
         <planeGeometry args={[11.5, 8.6]} />
         <meshBasicMaterial map={shadowTex} transparent depthWrite={false} polygonOffset polygonOffsetFactor={-5} polygonOffsetUnits={-20} />
       </mesh>
-      <group ref={plane}><Cessna172 getFrame={getFrame} /></group>
+      <group ref={plane}><C172Model getFrame={getFrame} /></group>
 
       <CameraRig run={run} mode={mode} getFrame={getFrame} />
     </>

@@ -94,6 +94,10 @@ function Home({ ac }: { ac?: AircraftProfile }) {
       </section>
       <footer className="home-foot">
         For study and briefing. Not a substitute for instruction — the POH/AFM and your CFI govern.
+        <br />
+        3D model: <a href="https://sketchfab.com/3d-models/cessna172-d1b15841c29c43d0862667300bad55a4" target="_blank" rel="noreferrer">“Cessna172”</a> by{' '}
+        <a href="https://sketchfab.com/ioai25312" target="_blank" rel="noreferrer">KOG_THORNS</a>, licensed{' '}
+        <a href="http://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noreferrer">CC BY 4.0</a>; scaled, re-oriented and compressed for this app.
       </footer>
     </main>
   );
@@ -166,6 +170,9 @@ function Viewer({ ac, def }: { ac: AircraftProfile; def: ManeuverDef }) {
             ))}
           </div>
           <span className="view-hint">Drag to look around · pinch or scroll to zoom</span>
+          <a className="model-credit" href="https://sketchfab.com/3d-models/cessna172-d1b15841c29c43d0862667300bad55a4" target="_blank" rel="noreferrer">
+            Cessna 172 model by KOG_THORNS, CC BY 4.0 (modified)
+          </a>
         </div>
 
         <div className="pfd-wrap"><G1000PFD f={f} run={run} ac={ac} /></div>
