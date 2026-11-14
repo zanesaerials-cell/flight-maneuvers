@@ -6,6 +6,7 @@ import { sampleAt } from './engine/kinematics';
 import { playback, usePlayback } from './store/playback';
 import { Scene3D, type ViewMode } from './components/Scene3D';
 import { G1000PFD } from './components/G1000PFD';
+import { G3XPFD } from './components/G3XPFD';
 import { ControlsPanel } from './components/ControlsPanel';
 import { AcsPanel, StepsPanel, Transport } from './components/Panels';
 
@@ -185,7 +186,7 @@ function Viewer({ ac, cert, def }: { ac: AircraftProfile; cert: Cert; def: Maneu
           {ac.model?.credit && <a className="model-credit" href={ac.model.creditUrl} target="_blank" rel="noreferrer">{ac.model.credit}</a>}
         </div>
 
-        <div className="pfd-wrap"><G1000PFD f={f} run={run} ac={ac} /></div>
+        <div className="pfd-wrap">{ac.avionics === 'g3x-touch' ? <G3XPFD f={f} run={run} ac={ac} /> : <G1000PFD f={f} run={run} ac={ac} />}</div>
 
         {wide ? (
           <>

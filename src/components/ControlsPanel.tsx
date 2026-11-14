@@ -1,4 +1,5 @@
 import { fl, type AircraftProfile } from '../data/aircraft';
+import { propLever } from './engine';
 import type { Frame } from '../engine/types';
 import { clamp } from '../engine/kinematics';
 
@@ -48,12 +49,11 @@ export function ControlsPanel({ f, ac }: { f: Frame; ac: AircraftProfile }) {
           <PushPull v={c.mixture} color="#d7262e" ring="#e9ecef" label="MIXTURE" ribbed />
         </Instrument>
       )}
-      {ac.controls.prop && (() => {
-        // The school's settings: 2,060 RPM in cruise, full forward for everything else.
-        const cruiseProp = f.rpm >= 19.5 && f.rpm <= 25.5 && Math.abs(f.vsi) < 250 && c.flaps < 1;
-        return (
-          <Instrument title="Propeller" value={cruiseProp ? '2,060 RPM' : 'Full forward'}>
-            <PushPull v={cruiseProp ? 0.72 : 1} color="#2c6fc9" ring="#e9ecef" label="PROP" />
+      {(() => {
+        const prop = propLever(ac, f);
+        return prop && (
+          <Instrument title="Propeller" value={prop.setting === 'cruise' ? '2,060 RPM' : 'Full forward'}>
+            <PushPull v={prop.setting === 'cruise' ? 0.72 : 1} color="#2c6fc9" ring="#e9ecef" label="PROP" />
           </Instrument>
         );
       })()}

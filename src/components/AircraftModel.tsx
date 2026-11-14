@@ -68,8 +68,11 @@ function loadModel(url: string) {
   return p;
 }
 
+const GEAR_TRAVEL = 0.55;   // metres a retracting gear leg slides up before it disappears
+
 function Loaded({ scene, rig, getFrame }: { scene: THREE.Group; rig: ModelRig; getFrame: () => Frame }) {
   const discs = useRef<(THREE.Mesh | null)[]>([]);
+  const blur = useRef<(THREE.Mesh | null)[]>([]);
   const built = useMemo(() => {
     const root = scene.clone(true);
     root.updateMatrixWorld(true);
@@ -101,43 +104,77 @@ function Loaded({ scene, rig, getFrame }: { scene: THREE.Group; rig: ModelRig; g
       spin.attach(prop);
       pivots.prop = spin;
     }
+    // Separate propellers: re-parent each onto a hub that spins about the fore-aft axis.
+    const spinners: THREE.Group[] = [];
+    for (const pr of rig.props ?? []) {
+      const part = root.getObjectByName(pr.name);
+      const hub = new THREE.Group();
+      hub.position.set(...pr.at);
+      const spin = new THREE.Group();
+      hub.add(spin);
+      root.add(hub);
+      root.updateMatrixWorld(true);
+      if (part) spin.attach(part);
+      spinners.push(spin);
+    }
+    // Keep each part's own offset: the compressed file stores one on the node.
+    const gear = (rig.gear ?? []).map((n) => root.getObjectByName(n)).filter((o): o is THREE.Object3D => !!o)
+      .map((o) => ({ o, y0: o.position.y }));
     // Glass reads better slightly tinted and see-through from outside.
     root.traverse((o) => {
       const m = (o as THREE.Mesh).material as THREE.MeshStandardMaterial | undefined;
       if (m && /glass/i.test(m.name)) { m.transparent = true; m.opacity = Math.min(m.opacity, 0.55); m.depthWrite = false; }
     });
-    return { root, pivots };
+    return { root, pivots, spinners, gear };
   }, [scene, rig]);
 
   useFrame((_, dt) => {
     const f = getFrame();
-    const p = built.pivots;
+    const twin = (rig.props?.length ?? 0) > 1;
     // Positive rotation about a +X hinge moves the trailing edge down.
     const ail = f.c.aileron * 0.3;
-    if (p.aileronR) p.aileronR.rotation.x = -ail;     // right stick: right aileron up
-    if (p.aileronL) p.aileronL.rotation.x = ail;      //              left aileron down
     const flap = f.c.flaps * D2R;
-    if (p.flapR) p.flapR.rotation.x = flap;
-    if (p.flapL) p.flapL.rotation.x = flap;
     const el = -f.c.elevator * 0.4;                   // pull: trailing edge up
-    if (p.elevatorR) p.elevatorR.rotation.x = el;
-    if (p.elevatorL) p.elevatorL.rotation.x = el;
-    if (p.rudder) p.rudder.rotation.y = f.c.rudder * 0.38;   // right pedal: rudder to the right
-    const power = Math.max(f.c.throttle, 0.15);
-    if (p.prop) p.prop.rotation.z += dt * (6 + 30 * power);
+    for (const [name, piv] of Object.entries(built.pivots)) {
+      if (name.startsWith('aileronR')) piv.rotation.x = -ail;      // right stick: right aileron up
+      else if (name.startsWith('aileronL')) piv.rotation.x = ail;  //              left aileron down
+      else if (name.startsWith('flap')) piv.rotation.x = flap;
+      else if (name.startsWith('elevator')) piv.rotation.x = el;
+      else if (name.startsWith('rudder')) piv.rotation.y = f.c.rudder * 0.38;   // right pedal: rudder to the right
+    }
+    const lever = (i: number) => (twin && i === 1 ? f.c.throttleR : f.c.throttle);
+    // On a twin the first propeller is the left engine; it stops (feathered) when that engine has failed.
+    const stopped = (i: number) => twin && i === 0 && !!f.oei;
+    if (built.pivots.prop) built.pivots.prop.rotation.z += dt * (6 + 30 * Math.max(f.c.throttle, 0.15));
+    built.spinners.forEach((sp, i) => {
+      if (stopped(i)) return;
+      // Spun slowly enough that the blades stay visible; the disc adds the blur at power.
+      sp.rotation.z += dt * (5 + 14 * Math.max(lever(i), 0.12)) * (i === 0 ? 1 : -1);
+    });
+    blur.current.forEach((d, i) => {
+      if (!d) return;
+      d.visible = !stopped(i);
+      (d.material as THREE.MeshBasicMaterial).opacity = 0.04 + 0.12 * lever(i);
+    });
     discs.current.forEach((d, i) => {
       if (!d) return;
-      // On a twin the first disc is the left engine; it stops when that engine is failed.
-      const stopped = !!f.oei && i === 0 && discs.current.length > 1;
-      d.visible = !stopped;
-      const lever = discs.current.length > 1 && i === 1 ? f.c.throttleR : f.c.throttle;
-      (d.material as THREE.MeshBasicMaterial).opacity = 0.1 + 0.16 * lever;
+      d.visible = !stopped(i);
+      (d.material as THREE.MeshBasicMaterial).opacity = 0.1 + 0.16 * lever(i);
     });
+    // Retractable gear slides up into the nacelles and nose, then disappears.
+    const g = THREE.MathUtils.clamp(f.c.gear, 0, 1);
+    built.gear.forEach(({ o, y0 }) => { o.position.y = y0 + (1 - g) * GEAR_TRAVEL; o.visible = g > 0.03; });
   });
 
   return (
     <group>
       <primitive object={built.root} />
+      {rig.props?.map((d, i) => (
+        <mesh key={d.name} ref={(m) => { blur.current[i] = m; }} position={[d.at[0], d.at[1], d.at[2] - 0.02]}>
+          <circleGeometry args={[d.radius, 48]} />
+          <meshBasicMaterial color="#cfd5db" transparent opacity={0.1} side={THREE.DoubleSide} depthWrite={false} />
+        </mesh>
+      ))}
       {rig.propDiscs?.map((d, i) => (
         <mesh key={i} ref={(m) => { discs.current[i] = m; }} position={d.at}>
           <circleGeometry args={[d.radius, 40]} />

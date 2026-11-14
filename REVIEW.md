@@ -82,7 +82,10 @@ Sources: Tecnam P-Mentor AFM (sections 2, 4, 5), DA42 AFM Doc. 7.01.05-E Rev. 8 
 - Takeoff with flaps T/O, flaps up above 300 ft AGL; soft-field liftoff ~45, touchdown ~46; go-around climb 61 (Vy, flaps T/O).
 - Emergency descent at 100 KIAS, 40° bank.
 - Flap angles 15°/35° are assumed and only affect the animation.
-- The PFD is drawn G1000-style; the P-Mentor has a G3X Touch.
+- The P-Mentor now shows a G3X Touch-style PFD:
+  - Rotax engine strip: RPM, manifold pressure, fuel flow, oil pressure and temperature, coolant temperature, volts and fuel.
+  - AOA indicator, arc HSI and a touch-tab bar.
+  - **check:** the engine-strip readings other than manifold pressure are illustrative values derived from MP, not POH data. These are engine RPM (prop × 2.43), fuel flow, oil, coolant and fuel quantity. Gauge colour ranges follow the AFM limits where I had them: oil pressure 12/29/73/102 psi, 5,500 continuous / 5,800 take-off RPM.
 
 ## Guide items where the app differs or needs a decision
 
@@ -131,5 +134,9 @@ Sources: Tecnam P-Mentor AFM (sections 2, 4, 5), DA42 AFM Doc. 7.01.05-E Rev. 8 
 
 ## 3D models
 
-- **DA42** (helijah, CC BY 4.0) and the **P2002 stand-in** are single-mesh models: control surfaces and landing gear do not move on them. The controls panel still shows every input.
+- **DA42** (helijah, CC BY 4.0) is rigged by `tools/prepare-da42-model.mjs`:
+  - Moving parts: both 3-blade propellers, inboard and outboard flaps, ailerons, elevator, rudder and retractable gear. The gear slides up and disappears; it does not swing.
+  - The left propeller stops after the left engine fails.
+  - The model came with the left nose baggage door open; it has been closed.
+- The **P2002 stand-in** for the P-Mentor is still a single mesh, so its surfaces do not move. The controls panel still shows every input.
 - The **P2002** model's Sketchfab Standard licence does not allow the file to be redistributed, so it is not in the repository. Without it the P-Mentor shows a built-in low-wing stand-in.

@@ -96,7 +96,24 @@ The ailerons, flaps, elevator and rudder rotate about their real hinge lines. `W
 
 The P-Mentor uses a Tecnam P2002 Sierra model as a look-alike. That model is under the Sketchfab Standard licence, which does not allow redistributing the file, so `public/models/p2002.glb` is git-ignored. To use it on a deployment you control, convert the Sketchfab download with `node tools/prepare-static-model.mjs scene.gltf public/models/p2002.glb rig.json -1.15 0 1`, then fill in `model.credit` for the P-Mentor in `src/data/aircraft.ts`. Without the file the app shows a built-in low-wing stand-in.
 
-`src/data/modelRigs.ts` holds each model's tire contact points and propeller positions.
+`src/data/modelRigs.ts` holds each model's tire contact points, hinge lines, propeller hubs and gear parts.
+
+## DA42 model
+
+`tools/prepare-da42-model.mjs` turns the Sketchfab download into `public/models/da42.glb`:
+- Cuts the propellers, flaps, ailerons, elevator, rudder and gear out of the model's large meshes as named parts.
+- Closes the nose baggage door that the original has open.
+- Re-orients the model and computes the rig.
+
+```bash
+node tools/prepare-da42-model.mjs path/to/scene.gltf public/models/da42.glb rig.json
+```
+
+Paste the rig into `MODEL_RIGS.da42`.
+
+## Displays
+
+The C172S and DA42 use the G1000-style PFD (`G1000PFD.tsx`). The P-Mentor uses a G3X Touch-style PFD (`G3XPFD.tsx`) with a Rotax engine strip; derived engine readings are in `components/engine.ts`.
 
 ## Content review
 
