@@ -47,7 +47,7 @@ export function AcsPanel({ run, f }: { run: ManeuverRun; f: Frame }) {
     <section className="acs" aria-label="ACS standards">
       <header className="acs-head">
         <span className="acs-code">{run.acsCode}</span>
-        <span>Private Pilot ACS, {run.acsTask}</span>
+        <span>{run.acsDoc ?? 'Private Pilot ACS'}, {run.acsTask}</span>
       </header>
       <p className="acs-objective">{run.objective}</p>
       <div className="tol-list">

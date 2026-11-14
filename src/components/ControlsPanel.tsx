@@ -1,4 +1,4 @@
-import type { AircraftProfile } from '../data/aircraft';
+import { fl, type AircraftProfile } from '../data/aircraft';
 import type { Frame } from '../engine/types';
 import { clamp } from '../engine/kinematics';
 
@@ -33,16 +33,39 @@ export function ControlsPanel({ f, ac }: { f: Frame; ac: AircraftProfile }) {
       <Instrument title="Rudder pedals" value={describeRudder(c.rudder)}>
         <Pedals rud={c.rudder} />
       </Instrument>
-      <Instrument title="Throttle" value={`${Math.round(f.rpm).toLocaleString()} RPM`}>
-        <PushPull v={c.throttle} color="#1b1d20" ring="#e9ecef" label="THROTTLE" />
+      <Instrument
+        title={ac.power.lever}
+        value={ac.engines === 2 && Math.abs(c.throttle - c.throttleR) > 0.08
+          ? `Left ${f.oei ? 'failed' : c.throttle < 0.05 ? 'idle' : `${Math.round(c.throttle * 100)}%`} · Right ${ac.power.fmt(f.rpm)}`
+          : ac.power.fmt(f.rpm)}
+      >
+        {ac.engines === 2
+          ? <TwinLevers l={c.throttle} r={c.throttleR} />
+          : <PushPull v={c.throttle} color="#1b1d20" ring="#e9ecef" label="THROTTLE" />}
       </Instrument>
-      <Instrument title="Mixture" value={c.mixture > 0.97 ? 'Full rich' : c.mixture < 0.05 ? 'Idle cut-off' : 'Leaned'}>
-        <PushPull v={c.mixture} color="#d7262e" ring="#e9ecef" label="MIXTURE" ribbed />
+      {ac.controls.mixture && (
+        <Instrument title="Mixture" value={c.mixture > 0.97 ? 'Full rich' : c.mixture < 0.05 ? 'Idle cut-off' : 'Leaned'}>
+          <PushPull v={c.mixture} color="#d7262e" ring="#e9ecef" label="MIXTURE" ribbed />
+        </Instrument>
+      )}
+      {ac.controls.prop && (() => {
+        // The school's settings: 2,060 RPM in cruise, full forward for everything else.
+        const cruiseProp = f.rpm >= 19.5 && f.rpm <= 25.5 && Math.abs(f.vsi) < 250 && c.flaps < 1;
+        return (
+          <Instrument title="Propeller" value={cruiseProp ? '2,060 RPM' : 'Full forward'}>
+            <PushPull v={cruiseProp ? 0.72 : 1} color="#2c6fc9" ring="#e9ecef" label="PROP" />
+          </Instrument>
+        );
+      })()}
+      {ac.retractable && (
+        <Instrument title="Landing gear" value={c.gear > 0.95 ? 'Down — three green' : c.gear < 0.05 ? 'Up' : 'In transit'}>
+          <Gear v={c.gear} />
+        </Instrument>
+      )}
+      <Instrument title="Flaps" value={fl(ac, c.flaps) === 'up' ? 'Up' : fl(ac, c.flaps)}>
+        <Flaps deg={c.flaps} detents={ac.flapDetents} labels={ac.flapLabels} />
       </Instrument>
-      <Instrument title="Flaps" value={`${Math.round(c.flaps)}°`}>
-        <Flaps deg={c.flaps} detents={ac.flapDetents} />
-      </Instrument>
-      <Instrument title="Elevator trim" value={c.trim > 0.05 ? 'Slight nose up' : c.trim < -0.05 ? 'Slight nose down' : 'Takeoff / neutral'}>
+      <Instrument title="Elevator trim" value={c.trim > 0.05 ? 'Nose up' : c.trim < -0.05 ? 'Nose down' : 'Takeoff / neutral'}>
         <Trim v={c.trim} />
       </Instrument>
     </div>
@@ -128,16 +151,16 @@ function PushPull({ v, color, ring, label, ribbed }: { v: number; color: string;
   );
 }
 
-function Flaps({ deg, detents }: { deg: number; detents: number[] }) {
+function Flaps({ deg, detents, labels }: { deg: number; detents: number[]; labels: string[] }) {
   const max = detents[detents.length - 1] || 30;
   const y = (d: number) => 18 + (d / max) * 80;
   return (
     <svg viewBox="0 0 160 120">
       <rect x="70" y="14" width="10" height="88" rx="3" fill="#2a2f35" />
-      {detents.map((d) => (
+      {detents.map((d, i) => (
         <g key={d}>
           <line x1="84" x2="98" y1={y(d)} y2={y(d)} stroke="#9aa3ad" strokeWidth="2" />
-          <text x="104" y={y(d) + 5} className="art-note">{d}°</text>
+          <text x="104" y={y(d) + 5} className="art-note">{labels[i] === 'up' ? 'UP' : labels[i]}</text>
         </g>
       ))}
       <g transform={`translate(75 ${y(deg)})`}>
@@ -162,6 +185,42 @@ function Trim({ v }: { v: number }) {
       <text x="106" y="98" className="art-note">nose up</text>
       <text x="106" y="64" className="art-note">TO</text>
       <polygon points={`100,${60 + off} 92,${55 + off} 92,${65 + off}`} fill="#2fd7f5" />
+    </svg>
+  );
+}
+
+function TwinLevers({ l, r }: { l: number; r: number }) {
+  // Quadrant seen from above: forward (more power) is up.
+  const y = (v: number) => 92 - clamp(v, 0, 1) * 66;
+  const lever = (x: number, v: number, tag: string) => (
+    <g>
+      <rect x={x - 3} y="22" width="6" height="74" rx="3" fill="#15171a" />
+      <rect x={x - 13} y={y(v) - 9} width="26" height="18" rx="5" fill="#1b1d20" stroke="#e9ecef" strokeWidth="2" />
+      <text x={x} y="112" textAnchor="middle" className="art-note">{tag}</text>
+    </g>
+  );
+  return (
+    <svg viewBox="0 0 160 120">
+      <rect x="36" y="14" width="88" height="88" rx="8" fill="#2a2f35" />
+      {lever(62, l, 'L')}
+      {lever(98, r, 'R')}
+    </svg>
+  );
+}
+
+function Gear({ v }: { v: number }) {
+  const down = v > 0.95, up = v < 0.05;
+  const lamp = (cx: number, cy: number) => <circle cx={cx} cy={cy} r="7" fill={down ? '#3ddc84' : up ? '#2a2f35' : '#ffb020'} stroke="#5a626b" strokeWidth="1.5" />;
+  return (
+    <svg viewBox="0 0 160 120">
+      <rect x="24" y="16" width="52" height="88" rx="8" fill="#2a2f35" />
+      <rect x="46" y="28" width="8" height="64" rx="4" fill="#15171a" />
+      <g transform={`translate(50 ${34 + clamp(v, 0, 1) * 52})`}>
+        <circle r="11" fill="#e9ecef" stroke="#5a626b" strokeWidth="2" />
+        <circle r="4" fill="#5a626b" />
+      </g>
+      {lamp(116, 40)}{lamp(100, 68)}{lamp(132, 68)}
+      <text x="116" y="96" textAnchor="middle" className="art-note">{down ? 'DOWN' : up ? 'UP' : 'TRANSIT'}</text>
     </svg>
   );
 }

@@ -1,6 +1,7 @@
-import type { AircraftProfile } from '../data/aircraft';
+import { fl, flapUpOne, pwFrac, pwT, type AircraftProfile, type Cert } from '../data/aircraft';
+import { std } from './standards';
 import { KCXW } from '../data/airports';
-import { FT, lerp, smoothstep, wrap360 } from '../engine/kinematics';
+import { FT, lerp, levelPitch, smoothstep, wrap360 } from '../engine/kinematics';
 import { SIM_DT, Sim, approachLaw, runwayFrame } from '../engine/sim';
 import type { Frame, ManeuverRun, SceneLabel, Step, Tolerance } from '../engine/types';
 
@@ -10,10 +11,10 @@ import type { Frame, ManeuverRun, SceneLabel, Step, Tolerance } from '../engine/
  * start on a stabilized final.
  */
 
-const APT = KCXW;
-const END = '22';
+export const APT = KCXW;
+export const END = '22';
 
-type Rf = ReturnType<typeof runwayFrame>;
+export type Rf = ReturnType<typeof runwayFrame>;
 const fmtH = (h: number) => String(Math.round(wrap360(h)) || 360).padStart(3, '0');
 const n = (x: number) => Math.round(x).toLocaleString();
 
@@ -23,18 +24,18 @@ function needs(ac: AircraftProfile) {
   return { p, q };
 }
 
-function groundSim(ac: AircraftProfile, rf: Rf, startAlong: number, rolling = 0) {
+export function groundSim(ac: AircraftProfile, rf: Rf, startAlong: number, rolling = 0) {
   const at = rf.at(startAlong);
   const sim = new Sim(ac, {
     east: at.e, north: at.n, hdg: rf.hdg, altFt: APT.elevFt, elevFt: APT.elevFt,
-    ias: rolling, rpm: rolling ? 1200 : 1000, flaps: 0, onGround: true, throttle: rolling ? 0.25 : 0.15, trim: 0,
+    ias: rolling, rpm: ac.pw.taxi, flaps: 0, onGround: true, throttle: pwFrac(ac, ac.pw.taxi), trim: 0,
   });
   sim.s.pitch = 0.5;
   sim.raw[0].pitch = 0.5;
   return sim;
 }
 
-function finalSim(ac: AircraftProfile, rf: Rf, distFromAim: number, aimAlong: number, aglFt: number, ias: number, flaps: number, rpm: number, trim: number, pathDeg = 3.5) {
+export function finalSim(ac: AircraftProfile, rf: Rf, distFromAim: number, aimAlong: number, aglFt: number, ias: number, flaps: number, rpm: number, trim: number, pathDeg = 3.5) {
   const at = rf.at(aimAlong - distFromAim);
   const sim = new Sim(ac, {
     east: at.e, north: at.n, hdg: rf.hdg, altFt: APT.elevFt + aglFt, elevFt: APT.elevFt,
@@ -47,7 +48,7 @@ function finalSim(ac: AircraftProfile, rf: Rf, distFromAim: number, aimAlong: nu
 }
 
 /** Ground roll to rotation, with right rudder growing as P-factor builds. */
-function takeoffRoll(sim: Sim, rotateKias: number, accel: number, opts: { tailLow?: boolean } = {}) {
+export function takeoffRoll(sim: Sim, rotateKias: number, accel: number, opts: { tailLow?: boolean } = {}) {
   const s = sim.s;
   const t0 = s.t;
   sim.tgt.throttle = 1;
@@ -61,7 +62,7 @@ function takeoffRoll(sim: Sim, rotateKias: number, accel: number, opts: { tailLo
 }
 
 /** Rotate, lift off, then hand pitch back to the flight model. */
-function rotateAndLiftOff(sim: Sim, liftoffKias: number, accel: number, rotPitch = 8) {
+export function rotateAndLiftOff(sim: Sim, liftoffKias: number, accel: number, rotPitch = 8) {
   const s = sim.s;
   sim.mark('rotate');
   const t0 = s.t;
@@ -75,7 +76,7 @@ function rotateAndLiftOff(sim: Sim, liftoffKias: number, accel: number, rotPitch
 }
 
 /** Fly the final approach to touchdown, then roll out to taxi speed. */
-function finalToStop(sim: Sim, rf: Rf, o: {
+export function finalToStop(sim: Sim, rf: Rf, o: {
   aimAlong: number; pathDeg: number; tdKias: number; decel: number; idleAtAlong: number;
   flareGain?: number; touchdownFpm?: number; flareFt?: number; flareRpm?: number;
   noseHigh?: boolean; flapsUpOnRollout?: boolean; endKias?: number;
@@ -99,7 +100,7 @@ function finalToStop(sim: Sim, rf: Rf, o: {
   s.alt = APT.elevFt; s.vs = 0; s.onGround = true;
   sim.mark('touchdown');
   const t0 = s.t;
-  const tdPitch = 1.5 + (95 - s.ias) * 0.15 - s.flaps * 0.08;
+  const tdPitch = levelPitch(sim.ac, s.ias, s.flaps) + 2;
   if (o.flapsUpOnRollout) sim.tgt.flaps = 0;
   sim.tgt.rpm = sim.ac.rpm.idle; sim.tgt.throttle = 0;
   while (s.ias > (o.endKias ?? 12)) {
@@ -113,11 +114,11 @@ function finalToStop(sim: Sim, rf: Rf, o: {
 }
 
 /** Keep climbing at `fpm` until passing `aglFt` (no level-off — the climb continues). */
-function climbTo(sim: Sim, aglFt: number, fpm: number, during?: () => void) {
-  sim.until(() => sim.agl >= aglFt - 1, () => { sim.s.elevBias = Math.max(0.05, sim.s.elevBias - 0.2 * SIM_DT); sim.tgt.vs = fpm; sim.tgt.vsRate = 250; during?.(); }, 300);
+export function climbTo(sim: Sim, aglFt: number, fpm: number, during?: () => void) {
+  sim.until(() => sim.agl >= aglFt - 1, () => { if (sim.agl > 60) sim.gearUp(); sim.s.elevBias = Math.max(0.05, sim.s.elevBias - 0.2 * SIM_DT); sim.tgt.vs = fpm; sim.tgt.vsRate = 250; during?.(); }, 300);
 }
 
-function run(base: {
+export function run(base: {
   id: string; title: string; acsCode: string; acsTask: string; objective: string;
   sim: Sim; rf: Rf; steps: Step[]; tolerances: Tolerance[]; bugs: ManeuverRun['bugs']; notes: string[]; labels?: SceneLabel[];
 }, cruiseRpm: number): ManeuverRun {
@@ -141,17 +142,21 @@ function run(base: {
   };
 }
 
-const lineupText = (rf: Rf, flaps: number, extra: string[] = []) => [
+export const gearUpLine = (ac: AircraftProfile) => (ac.retractable ? ['Positive rate, no usable runway remaining: gear UP.'] : []);
+export const gearDownLine = (ac: AircraftProfile) => (ac.retractable ? ['Gear DOWN — three green, confirmed again on final.'] : []);
+export const lineupText = (ac: AircraftProfile, rf: Rf, flaps: number, extra: string[] = []) => [
   `Runway ${END}, ${n(rf.rwy.lengthFt)} × ${rf.rwy.widthFt} ft. Before-takeoff checklist complete; announce on the CTAF.`,
-  `Flaps ${flaps}°, mixture rich, heading bug ${fmtH(rf.hdg)}.`,
+  `Flaps ${fl(ac, flaps)}, ${ac.text.lineup}, heading bug ${fmtH(rf.hdg)}.`,
   ...extra,
 ];
 
 // ─────────────────────────────────────────────────────────────── Normal takeoff
-export function buildNormalTakeoff(ac: AircraftProfile): ManeuverRun {
+export function buildNormalTakeoff(ac: AircraftProfile, cert: Cert = 'private'): ManeuverRun {
+  const st = std(cert); void st;
   const { p } = needs(ac);
   const rf = runwayFrame(APT, END);
   const sim = groundSim(ac, rf, rf.threshold + 15);
+  sim.s.flaps = p.takeoffFlaps; sim.tgt.flaps = p.takeoffFlaps;
   sim.for(2.5);
   sim.mark('roll');
   takeoffRoll(sim, p.rotateKias, p.groundAccel);
@@ -161,15 +166,15 @@ export function buildNormalTakeoff(ac: AircraftProfile): ManeuverRun {
   sim.tgt.ias = p.climbKias; sim.tgt.accel = 1.2; sim.tgt.rpm = p.climbRpm; sim.tgt.trim = 0.25;
   climbTo(sim, 150, p.climbFpm, () => { s.rudderBias = Math.max(0.12, s.rudderBias - 0.05 * SIM_DT); });
   sim.mark('vy');
-  climbTo(sim, 600, p.climbFpm);
+  climbTo(sim, 600, p.climbFpm, () => { if (sim.agl > 300) sim.tgt.flaps = 0; });
   sim.mark('climb');
   sim.for(8, () => sim.holdAlt(APT.elevFt + 1100, p.climbFpm));
 
   const m = sim.marks;
   const steps: Step[] = [
-    { id: 'lineup', title: `Line up on runway ${END}`, start: 0, end: m.roll, detail: lineupText(rf, p.takeoffFlaps, ['Centered on the centerline, nosewheel straight.']) },
+    { id: 'lineup', title: `Line up on runway ${END}`, start: 0, end: m.roll, detail: lineupText(ac, rf, p.takeoffFlaps, ['Centered on the centerline, nosewheel straight.']) },
     { id: 'roll', title: 'Takeoff roll', start: m.roll, end: m.rotate, detail: [
-      'Smoothly apply full throttle. Check RPM and engine gauges in the green.',
+      'Smoothly apply full power. Check engine gauges in the green.',
       'Right rudder to hold the centerline as P-factor and slipstream build.',
       'Ailerons neutral in calm wind; airspeed alive.',
     ] },
@@ -181,9 +186,11 @@ export function buildNormalTakeoff(ac: AircraftProfile): ManeuverRun {
       'Lower the nose slightly to let airspeed build to Vy.',
       'Keep right rudder in to hold the ball centered and track the centerline.',
       'Positive rate of climb — trim.',
+      ...gearUpLine(ac),
     ] },
     { id: 'climb', title: 'Climb out at Vy', start: m.vy, end: m.climb, detail: [
       `Hold ${p.climbKias} KIAS with pitch, about 10° nose up, full power.`,
+      ...(p.takeoffFlaps > 0 ? ['At a safe altitude (about 300 ft AGL shown), flaps up.'] : []),
       'Maintain runway heading and the extended centerline.',
       'Engine gauges green; clear the area ahead.',
     ] },
@@ -196,7 +203,7 @@ export function buildNormalTakeoff(ac: AircraftProfile): ManeuverRun {
     objective: 'Takeoff from a hard surface with directional control, rotation at the POH speed and a climb at Vy.',
     sim, rf, steps,
     tolerances: [
-      { id: 'vy', label: 'Climb speed (Vy)', unit: 'kt', standard: '+10 / −5 kt', value: (f) => f.ias, target: p.climbKias, minus: 5, plus: 10, windows: [[m.vy, m.climb + 8]] },
+      { id: 'vy', label: 'Climb speed (Vy)', unit: 'kt', standard: st.climb.label, value: (f) => f.ias, target: p.climbKias, minus: st.climb.minus, plus: st.climb.plus, windows: [[m.vy, m.climb + 8]] },
       { id: 'cl', label: 'Centerline', unit: 'ft', standard: 'On centerline', value: (f) => rf.lateral({ e: f.east, n: f.north }) / FT, target: 0, minus: 10, plus: 10, windows: [[m.roll, m.liftoff]] },
     ],
     bugs: { altitudeFt: APT.elevFt + APT.tpaAglFt, heading: rf.hdg, ias: p.climbKias },
@@ -205,7 +212,8 @@ export function buildNormalTakeoff(ac: AircraftProfile): ManeuverRun {
 }
 
 // ─────────────────────────────────────────────────────────────── Normal landing
-export function buildNormalLanding(ac: AircraftProfile): ManeuverRun {
+export function buildNormalLanding(ac: AircraftProfile, cert: Cert = 'private'): ManeuverRun {
+  const st = std(cert); void st;
   const { p } = needs(ac);
   const rf = runwayFrame(APT, END);
   const aim = rf.threshold + 1000 * FT;
@@ -214,12 +222,13 @@ export function buildNormalLanding(ac: AircraftProfile): ManeuverRun {
   const sim = finalSim(ac, rf, dist, aim, dist * Math.tan(path * Math.PI / 180) / FT, p.finalKias, p.finalFlaps, p.abeamRpm, 0.45);
   sim.tgt.ias = p.finalKias;
   sim.for(0.5);
-  finalToStop(sim, rf, { aimAlong: aim, pathDeg: path, tdKias: p.touchdownKias, decel: p.landingDecel, idleAtAlong: rf.threshold - 20 });
+  finalToStop(sim, rf, { aimAlong: aim - Math.max(0, p.finalKias - 65) * 2.2, pathDeg: path, tdKias: p.touchdownKias, decel: p.landingDecel, idleAtAlong: rf.threshold - 20 });
   const m = sim.marks;
   const mid = (m.idle - 0) * 0.55;
   const steps: Step[] = [
     { id: 'final', title: 'Stabilized on final', start: 0, end: mid, detail: [
-      `Full flaps (${p.finalFlaps}°), ${p.finalKias} KIAS, about ${n(p.abeamRpm)} RPM, trimmed.`,
+      `Flaps ${fl(ac, p.finalFlaps)}, ${p.finalKias} KIAS, about ${pwT(ac, p.abeamRpm)}, trimmed.`,
+      ...gearDownLine(ac),
       'On centerline, on a steady glidepath of roughly 3–4°, about 500 fpm down.',
       'Aim point is the 1,000 ft markers — it stays fixed in the windshield when the path is right.',
     ] },
@@ -246,15 +255,15 @@ export function buildNormalLanding(ac: AircraftProfile): ManeuverRun {
     objective: 'Stabilized approach at the recommended speed and a touchdown at or within 400 ft beyond the selected point.',
     sim, rf, steps,
     tolerances: [
-      { id: 'app', label: 'Approach speed', unit: 'kt', standard: '+10 / −5 kt', value: (f) => f.ias, target: p.finalKias, minus: 5, plus: 10, windows: [[0, m.flare]] },
-      tdTolerance(rf, aim, m.touchdown, 400, 'At or within 400 ft beyond'),
+      { id: 'app', label: 'Approach speed', unit: 'kt', standard: st.approach.label, value: (f) => f.ias, target: p.finalKias, minus: st.approach.minus, plus: st.approach.plus, windows: [[0, m.flare]] },
+      tdTolerance(rf, aim, m.touchdown, st.tdNormal, `At or within ${st.tdNormal} ft beyond`),
     ],
     bugs: { altitudeFt: APT.elevFt + APT.tpaAglFt, heading: rf.hdg, ias: p.finalKias },
     notes: ['Aim point: the 1,000 ft aiming-point markers.'],
   }, p.downwindRpm);
 }
 
-function tdTolerance(rf: Rf, aim: number, tdT: number, beyond: number, std: string): Tolerance {
+export function tdTolerance(rf: Rf, aim: number, tdT: number, beyond: number, std: string): Tolerance {
   return {
     id: 'td', label: 'Touchdown past aim point', unit: 'ft', standard: std,
     value: (f: Frame) => (rf.along({ e: f.east, n: f.north }) - aim) / FT, target: beyond / 2, minus: beyond / 2, plus: beyond / 2,
@@ -263,13 +272,14 @@ function tdTolerance(rf: Rf, aim: number, tdT: number, beyond: number, std: stri
 }
 
 // ─────────────────────────────────────────────────────────────── Soft-field takeoff
-export function buildSoftTakeoff(ac: AircraftProfile): ManeuverRun {
+export function buildSoftTakeoff(ac: AircraftProfile, cert: Cert = 'private'): ManeuverRun {
+  const st = std(cert); void st;
   const { p, q } = needs(ac);
   const rf = runwayFrame(APT, END);
   const sim = groundSim(ac, rf, rf.threshold - 25, 8);
   const s = sim.s;
   sim.tgt.flaps = q.softTakeoffFlaps; s.flaps = q.softTakeoffFlaps;
-  sim.tgt.throttle = 0.25; sim.tgt.rpm = 1200;
+  sim.power(ac.pw.taxi);
   sim.mark('taxi');
   // Rolling onto the runway without stopping, full back pressure.
   while (rf.along(sim.pos()) < rf.threshold + 5) { s.elevBias = Math.min(0.8, s.elevBias + 0.5 * SIM_DT); s.pitch = 0.5; sim.tick(0); }
@@ -305,7 +315,7 @@ export function buildSoftTakeoff(ac: AircraftProfile): ManeuverRun {
   sim.for(6, () => sim.holdAlt(APT.elevFt + 1000, p.climbFpm));
   const m = sim.marks;
   const steps: Step[] = [
-    { id: 'taxi', title: 'Roll onto the runway without stopping', start: 0, end: m.roll, detail: lineupText(rf, q.softTakeoffFlaps, [
+    { id: 'taxi', title: 'Roll onto the runway without stopping', start: 0, end: m.roll, detail: lineupText(ac, rf, q.softTakeoffFlaps, [
       'Hold full back elevator while taxiing to take weight off the nosewheel.',
       'Keep moving — stopping on a soft surface can bog the wheels down.',
     ]) },
@@ -325,7 +335,8 @@ export function buildSoftTakeoff(ac: AircraftProfile): ManeuverRun {
     ] },
     { id: 'climb', title: `Climb at Vy, ${p.climbKias} KIAS`, start: m.climb, end: m.flapsUp, detail: [
       'Raise the nose to the Vy attitude, full power, right rudder.',
-      'Flaps stay at 10° until a safe altitude.',
+      `Flaps stay at ${fl(ac, q.softTakeoffFlaps)} until a safe altitude.`,
+      ...gearUpLine(ac),
     ] },
     { id: 'flaps', title: 'Flaps up at a safe altitude', start: m.flapsUp, end: 0, detail: [
       'Retract the flaps slowly with positive rate and climb speed.',
@@ -337,7 +348,7 @@ export function buildSoftTakeoff(ac: AircraftProfile): ManeuverRun {
     objective: 'Get the weight onto the wings as early as possible, lift off at the lowest practical speed, and accelerate in ground effect before climbing.',
     sim, rf, steps,
     tolerances: [
-      { id: 'climb', label: 'Climb speed', unit: 'kt', standard: '+10 / −5 kt', value: (f) => f.ias, target: p.climbKias, minus: 5, plus: 10, windows: [[m.climb + 6, m.done + 6]] },
+      { id: 'climb', label: 'Climb speed', unit: 'kt', standard: st.climb.label, value: (f) => f.ias, target: p.climbKias, minus: st.climb.minus, plus: st.climb.plus, windows: [[m.climb + 6, m.done + 6]] },
       { id: 'ge', label: 'Height in ground effect', unit: 'ft', standard: 'Within a few feet', value: (f) => f.altFt - APT.elevFt, target: 8, minus: 8, plus: 12, windows: [[m.liftoff + 2, m.climb]] },
     ],
     bugs: { altitudeFt: APT.elevFt + APT.tpaAglFt, heading: rf.hdg, ias: p.climbKias },
@@ -346,7 +357,8 @@ export function buildSoftTakeoff(ac: AircraftProfile): ManeuverRun {
 }
 
 // ─────────────────────────────────────────────────────────────── Soft-field landing
-export function buildSoftLanding(ac: AircraftProfile): ManeuverRun {
+export function buildSoftLanding(ac: AircraftProfile, cert: Cert = 'private'): ManeuverRun {
+  const st = std(cert); void st;
   const { p, q } = needs(ac);
   const rf = runwayFrame(APT, END);
   const aim = rf.threshold + 1000 * FT;
@@ -355,12 +367,12 @@ export function buildSoftLanding(ac: AircraftProfile): ManeuverRun {
   sim.for(0.5);
   finalToStop(sim, rf, {
     aimAlong: aim, pathDeg: path, tdKias: q.softTouchdownKias, decel: 0.9, idleAtAlong: rf.threshold - 20,
-    flareRpm: 1300, flareGain: 18, touchdownFpm: 50, noseHigh: true, endKias: 10,
+    flareRpm: ac.pw.softFlare, flareGain: 18, touchdownFpm: 50, noseHigh: true, endKias: 10,
   });
   const m = sim.marks;
   const steps: Step[] = [
     { id: 'final', title: 'Stabilized on final', start: 0, end: m.idle, detail: [
-      `Full flaps (${p.finalFlaps}°), ${q.softApproachKias} KIAS, trimmed.`,
+      `Flaps ${fl(ac, p.finalFlaps)}, ${q.softApproachKias} KIAS, trimmed.`,
       'Same stabilized approach as normal, aiming to touch down as softly and slowly as possible.',
     ] },
     { id: 'power', title: 'Keep a little power in the flare', start: m.idle, end: m.flare, detail: [
@@ -380,7 +392,7 @@ export function buildSoftLanding(ac: AircraftProfile): ManeuverRun {
     objective: 'Touch down softly at the lowest possible speed and keep weight off the nosewheel through the rollout.',
     sim, rf, steps,
     tolerances: [
-      { id: 'app', label: 'Approach speed', unit: 'kt', standard: '+10 / −5 kt', value: (f) => f.ias, target: q.softApproachKias, minus: 5, plus: 10, windows: [[0, m.flare]] },
+      { id: 'app', label: 'Approach speed', unit: 'kt', standard: st.approach.label, value: (f) => f.ias, target: q.softApproachKias, minus: st.approach.minus, plus: st.approach.plus, windows: [[0, m.flare]] },
       { id: 'sink', label: 'Sink rate at touchdown', unit: 'fpm', standard: 'As soft as possible', value: (f) => -f.vsi, target: 50, minus: 50, plus: 100, windows: [[m.touchdown - 0.4, m.touchdown - 0.05]] },
     ],
     bugs: { altitudeFt: APT.elevFt + APT.tpaAglFt, heading: rf.hdg, ias: q.softApproachKias },
@@ -389,7 +401,8 @@ export function buildSoftLanding(ac: AircraftProfile): ManeuverRun {
 }
 
 // ─────────────────────────────────────────────────────────────── Short-field takeoff
-export function buildShortTakeoff(ac: AircraftProfile): ManeuverRun {
+export function buildShortTakeoff(ac: AircraftProfile, cert: Cert = 'private'): ManeuverRun {
+  const st = std(cert); void st;
   const { p, q } = needs(ac);
   const rf = runwayFrame(APT, END);
   const sim = groundSim(ac, rf, rf.threshold + 8);
@@ -403,12 +416,12 @@ export function buildShortTakeoff(ac: AircraftProfile): ManeuverRun {
   takeoffRoll(sim, q.shortObstacleKias - 5, p.groundAccel * 1.05, { tailLow: true });
   rotateAndLiftOff(sim, q.shortObstacleKias - 2, p.groundAccel, 10);
   s.pitch = undefined;
-  sim.tgt.ias = q.shortObstacleKias; sim.tgt.accel = 1.2; sim.tgt.rpm = p.climbRpm - 50; sim.tgt.trim = 0.25;
+  sim.tgt.ias = q.shortObstacleKias; sim.tgt.accel = 1.2; sim.tgt.rpm = p.climbRpm; sim.tgt.trim = 0.25;
   const obstacleAlong = rf.along(sim.pos()) + 160;
   climbTo(sim, 60, 760);
   sim.mark('cleared');
   sim.tgt.ias = p.climbKias; sim.tgt.accel = 0.9;
-  sim.until(() => s.ias >= 60, () => sim.holdAlt(APT.elevFt + 1000, 600));
+  sim.until(() => s.ias >= Math.min(p.climbKias - 2, q.shortObstacleKias + 4), () => sim.holdAlt(APT.elevFt + 1000, 600));
   sim.mark('flaps');
   sim.tgt.flaps = 0;
   sim.tgt.rpm = p.climbRpm;
@@ -418,10 +431,10 @@ export function buildShortTakeoff(ac: AircraftProfile): ManeuverRun {
   const m = sim.marks;
   const ob = rf.at(obstacleAlong);
   const steps: Step[] = [
-    { id: 'lineup', title: 'Use all the runway', start: 0, end: m.brakes, detail: lineupText(rf, q.shortTakeoffFlaps, ['Line up at the very start of the runway — every foot behind you is wasted.']) },
+    { id: 'lineup', title: 'Use all the runway', start: 0, end: m.brakes, detail: lineupText(ac, rf, q.shortTakeoffFlaps, ['Line up at the very start of the runway — every foot behind you is wasted.']) },
     { id: 'brakes', title: 'Full power on the brakes', start: m.brakes, end: m.roll, detail: [
       'Hold the brakes and smoothly apply full throttle.',
-      'Check static RPM and engine gauges before releasing.',
+      'Check engine gauges before releasing.',
     ] },
     { id: 'roll', title: 'Release brakes, slightly tail low', start: m.roll, end: m.rotate, detail: [
       'Release the brakes and keep the centerline with rudder.',
@@ -431,13 +444,14 @@ export function buildShortTakeoff(ac: AircraftProfile): ManeuverRun {
       'Rotate smoothly as you approach obstacle-clearance speed.',
     ] },
     { id: 'obstacle', title: `Climb at ${q.shortObstacleKias} KIAS over the obstacle`, start: m.liftoff + 1.5, end: m.cleared, detail: [
-      `POH short-field climb speed: ${q.shortObstacleKias} KIAS with flaps ${q.shortTakeoffFlaps}° until all obstacles are cleared.`,
+      `Climb at ${q.shortObstacleKias} KIAS with flaps ${fl(ac, q.shortTakeoffFlaps)} until all obstacles are cleared.`,
       'Shown clearing a 50 ft obstacle beyond the liftoff point.',
       'Steep nose-up attitude — keep the ball centered with right rudder.',
     ] },
     { id: 'accelerate', title: 'Accelerate, then flaps up', start: m.cleared, end: m.vy, detail: [
       'Lower the nose slightly and accelerate.',
-      'Retract the flaps slowly after reaching 60 KIAS.',
+      ...gearUpLine(ac),
+      ...(q.shortTakeoffFlaps > 0 ? ['Retract the flaps slowly once accelerating with a positive rate.'] : []),
       `Continue to Vy, ${p.climbKias} KIAS.`,
     ] },
     { id: 'vy', title: 'Climb at Vy', start: m.vy, end: 0, detail: ['Full power, trimmed, on the extended centerline.'] },
@@ -447,8 +461,8 @@ export function buildShortTakeoff(ac: AircraftProfile): ManeuverRun {
     objective: 'Use the minimum runway and climb at the obstacle-clearance speed until a 50 ft obstacle is cleared, then accelerate to Vy.',
     sim, rf, steps,
     tolerances: [
-      { id: 'vx', label: 'Obstacle clearance speed', unit: 'kt', standard: '+10 / −5 kt', value: (f) => f.ias, target: q.shortObstacleKias, minus: 5, plus: 10, windows: [[m.liftoff + 3, m.cleared]] },
-      { id: 'vy', label: 'Climb speed (Vy)', unit: 'kt', standard: '+10 / −5 kt', value: (f) => f.ias, target: p.climbKias, minus: 5, plus: 10, windows: [[m.vy, m.vy + 8]] },
+      { id: 'vx', label: 'Obstacle clearance speed', unit: 'kt', standard: st.approach.label, value: (f) => f.ias, target: q.shortObstacleKias, minus: st.approach.minus, plus: st.approach.plus, windows: [[m.liftoff + 3, m.cleared]] },
+      { id: 'vy', label: 'Climb speed (Vy)', unit: 'kt', standard: st.climb.label, value: (f) => f.ias, target: p.climbKias, minus: st.climb.minus, plus: st.climb.plus, windows: [[m.vy, m.vy + 8]] },
     ],
     bugs: { altitudeFt: APT.elevFt + APT.tpaAglFt, heading: rf.hdg, ias: q.shortObstacleKias },
     notes: ['The 50 ft obstacle is a marker for the demonstration; at Conway the runway end is clear.'],
@@ -457,12 +471,13 @@ export function buildShortTakeoff(ac: AircraftProfile): ManeuverRun {
 }
 
 // ─────────────────────────────────────────────────────────────── Short-field landing
-export function buildShortLanding(ac: AircraftProfile): ManeuverRun {
+export function buildShortLanding(ac: AircraftProfile, cert: Cert = 'private'): ManeuverRun {
+  const st = std(cert); void st;
   const { p, q } = needs(ac);
   const rf = runwayFrame(APT, END);
   const aim = rf.threshold + 1000 * FT;
   const path = 4.5, dist = 1600;
-  const sim = finalSim(ac, rf, dist, aim, dist * Math.tan(path * Math.PI / 180) / FT, q.shortApproachKias, p.finalFlaps, 1400, 0.5, path);
+  const sim = finalSim(ac, rf, dist, aim, dist * Math.tan(path * Math.PI / 180) / FT, q.shortApproachKias, p.finalFlaps, ac.pw.shortApproach, 0.5, path);
   sim.for(0.5);
   finalToStop(sim, rf, {
     aimAlong: aim - 25, pathDeg: path, tdKias: q.shortTouchdownKias, decel: 3.6, idleAtAlong: aim - 260,
@@ -471,7 +486,8 @@ export function buildShortLanding(ac: AircraftProfile): ManeuverRun {
   const m = sim.marks;
   const steps: Step[] = [
     { id: 'final', title: 'Steep, stabilized final', start: 0, end: m.idle, detail: [
-      `Full flaps (${p.finalFlaps}°), ${q.shortApproachKias} KIAS — the POH short-field approach speed. Hold it precisely.`,
+      `Flaps ${fl(ac, p.finalFlaps)}, ${q.shortApproachKias} KIAS — the short-field approach speed. Hold it precisely.`,
+      ...gearDownLine(ac),
       'A steeper path to clear a 50 ft obstacle, with power controlling the descent.',
       'Pick the touchdown point — here the 1,000 ft markers — and keep it fixed in the windshield.',
     ] },
@@ -483,17 +499,17 @@ export function buildShortLanding(ac: AircraftProfile): ManeuverRun {
       `Touch down main wheels first at about ${q.shortTouchdownKias} KIAS, on or just past the point.`,
     ] },
     { id: 'brake', title: 'Flaps up, heavy braking', start: m.touchdown + 0.5, end: 0, detail: [
-      'Retract the flaps to put weight on the wheels (POH).',
+      'Retract the flaps to put weight on the wheels.',
       'Full back elevator and apply heavy braking without skidding the tires.',
     ] },
   ];
   return run({
     id: 'short-landing', title: 'Short-Field Approach and Landing', acsCode: 'PA.IV.F', acsTask: 'Area IV, Task F',
-    objective: 'Steep, slow, precise approach and a touchdown at or within 200 ft beyond the selected point, with maximum braking.',
+    objective: 'Steep, slow, precise approach and a touchdown at or within the standard distance beyond the selected point, with maximum braking.',
     sim, rf, steps,
     tolerances: [
-      { id: 'app', label: 'Approach speed', unit: 'kt', standard: '+10 / −5 kt', value: (f) => f.ias, target: q.shortApproachKias, minus: 5, plus: 10, windows: [[0, m.flare]] },
-      tdTolerance(rf, aim, m.touchdown, 200, 'At or within 200 ft beyond'),
+      { id: 'app', label: 'Approach speed', unit: 'kt', standard: st.approach.label, value: (f) => f.ias, target: q.shortApproachKias, minus: st.approach.minus, plus: st.approach.plus, windows: [[0, m.flare]] },
+      tdTolerance(rf, aim, m.touchdown, st.tdShort, `At or within ${st.tdShort} ft beyond`),
     ],
     bugs: { altitudeFt: APT.elevFt + APT.tpaAglFt, heading: rf.hdg, ias: q.shortApproachKias },
     notes: ['Touchdown point: the 1,000 ft aiming-point markers.'],
@@ -501,13 +517,14 @@ export function buildShortLanding(ac: AircraftProfile): ManeuverRun {
 }
 
 // ─────────────────────────────────────────────────────────────── Forward slip
-export function buildForwardSlip(ac: AircraftProfile): ManeuverRun {
+export function buildForwardSlip(ac: AircraftProfile, cert: Cert = 'private'): ManeuverRun {
+  const st = std(cert); void st;
   const { p, q } = needs(ac);
   const rf = runwayFrame(APT, END);
   const aim = rf.threshold + 1000 * FT;
   const path = 3.5, dist = 2300;
   const high = dist * Math.tan(path * Math.PI / 180) / FT + 450;
-  const sim = finalSim(ac, rf, dist, aim, high, q.slipKias, q.slipFlaps, ac.rpm.idle + 50, 0.3, 4.4);
+  const sim = finalSim(ac, rf, dist, aim, high, q.slipKias, q.slipFlaps, ac.rpm.idle, 0.3, 4.4);
   const s = sim.s;
   sim.tgt.rpm = ac.rpm.idle; sim.tgt.throttle = 0;
   sim.tgt.vs = -500; s.vs = -500;
@@ -541,14 +558,14 @@ export function buildForwardSlip(ac: AircraftProfile): ManeuverRun {
   });
   s.noTurn = false; s.yaw = 0; s.hdg = rf.hdg; s.bank = 0; s.rudderBias = 0; s.aileronBias = 0; s.slip = 0;
   sim.mark('normal');
-  sim.tgt.rpm = 1200; sim.tgt.throttle = 0.2;
-  finalToStop(sim, rf, { aimAlong: aim, pathDeg: path, tdKias: p.touchdownKias + 6, decel: p.landingDecel, idleAtAlong: rf.threshold - 20 });
+  sim.power(ac.pw.softFlare);
+  finalToStop(sim, rf, { aimAlong: aim - 20, pathDeg: path, tdKias: p.touchdownKias + 6, decel: p.landingDecel, idleAtAlong: rf.threshold - 20 });
   const m = sim.marks;
   const steps: Step[] = [
     { id: 'high', title: 'High on final', start: 0, end: m.slip, detail: [
-      `About ${n(450)} ft above a normal glidepath, power at idle, ${q.slipKias} KIAS, flaps ${q.slipFlaps}°.`,
+      `About ${n(450)} ft above a normal glidepath, power at idle, ${q.slipKias} KIAS, flaps ${fl(ac, q.slipFlaps)}.`,
       'The aim point is moving down the windshield — more altitude to lose than distance allows.',
-      'C172S POH: avoid slips with more than 20° of flaps.',
+      ...(ac.text.slipNote ? [ac.text.slipNote] : []),
     ] },
     { id: 'slip', title: 'Forward slip', start: m.slip, end: m.recover, detail: [
       'Lower one wing (left shown) with aileron and apply opposite (right) rudder.',
@@ -570,9 +587,9 @@ export function buildForwardSlip(ac: AircraftProfile): ManeuverRun {
     objective: 'Use a forward slip to lose excess altitude on final while tracking the centerline, then recover and land.',
     sim, rf, steps,
     tolerances: [
-      { id: 'spd', label: 'Airspeed in the slip', unit: 'kt', standard: '+10 / −5 kt', value: (f) => f.ias, target: q.slipKias, minus: 5, plus: 10, windows: [[m.slip, m.recover]] },
+      { id: 'spd', label: 'Airspeed in the slip', unit: 'kt', standard: st.approach.label, value: (f) => f.ias, target: q.slipKias, minus: st.approach.minus, plus: st.approach.plus, windows: [[m.slip, m.recover]] },
       { id: 'trk', label: 'Ground track vs centerline', unit: 'ft', standard: 'On centerline', value: (f) => rf.lateral({ e: f.east, n: f.north }) / FT, target: 0, minus: 20, plus: 20, windows: [[m.slip, m.touchdown]] },
-      tdTolerance(rf, aim, m.touchdown, 400, 'At or within 400 ft beyond'),
+      tdTolerance(rf, aim, m.touchdown, st.tdNormal, `At or within ${st.tdNormal} ft beyond`),
     ],
     bugs: { altitudeFt: APT.elevFt + APT.tpaAglFt, heading: rf.hdg, ias: q.slipKias },
     notes: ['In a crosswind, slip with the low wing into the wind.'],
@@ -580,7 +597,8 @@ export function buildForwardSlip(ac: AircraftProfile): ManeuverRun {
 }
 
 // ─────────────────────────────────────────────────────────────── Go-around
-export function buildGoAround(ac: AircraftProfile): ManeuverRun {
+export function buildGoAround(ac: AircraftProfile, cert: Cert = 'private'): ManeuverRun {
+  const st = std(cert); void st;
   const { p, q } = needs(ac);
   const rf = runwayFrame(APT, END);
   const aim = rf.threshold + 1000 * FT;
@@ -590,20 +608,21 @@ export function buildGoAround(ac: AircraftProfile): ManeuverRun {
   sim.until(() => sim.agl <= 160, () => approachLaw(sim, aim - rf.along(sim.pos()), path));
   sim.mark('decide');
   // Power — full throttle, right rudder; attitude — stop the descent; flaps to 20 right away.
-  sim.tgt.throttle = 1; sim.tgt.rpm = p.climbRpm - 50;
+  sim.tgt.throttle = 1; sim.tgt.rpm = p.climbRpm;
   sim.tgt.vs = 0; sim.tgt.vsRate = 350;
   sim.for(2, () => { s.rudderBias = Math.min(0.25, s.rudderBias + 0.15 * SIM_DT); s.elevBias = Math.max(-0.25, s.elevBias - 0.15 * SIM_DT); });
   sim.mark('flaps20');
   sim.tgt.flaps = q.balkedFlaps; sim.tgt.ias = q.balkedClimbKias; sim.tgt.accel = 1; sim.tgt.trim = 0.3;
   sim.until(() => s.flaps <= q.balkedFlaps + 0.1, () => { sim.tgt.vs = 150; });
   sim.mark('climb');
+  sim.gearUp();
   sim.until(() => s.ias >= q.balkedFlapsUpKias && sim.agl > 300, () => {
     sim.holdAlt(APT.elevFt + 1000, 550);
     sim.tgt.ias = s.alt - APT.elevFt > 250 ? q.balkedFlapsUpKias + 1 : q.balkedClimbKias;
     s.elevBias = Math.min(-0.05, s.elevBias + 0.03 * SIM_DT);
   });
   sim.mark('flaps10');
-  sim.tgt.flaps = 10;
+  sim.tgt.flaps = flapUpOne(ac, q.balkedFlaps);
   sim.for(4, () => sim.holdAlt(APT.elevFt + 1000, 600));
   sim.mark('flapsUp');
   sim.tgt.flaps = 0; sim.tgt.ias = p.climbKias; sim.tgt.trim = 0.25;
@@ -613,24 +632,25 @@ export function buildGoAround(ac: AircraftProfile): ManeuverRun {
   const m = sim.marks;
   const steps: Step[] = [
     { id: 'final', title: 'Short final — not working out', start: 0, end: m.decide, detail: [
-      `Normal approach: flaps ${p.finalFlaps}°, ${p.finalKias} KIAS.`,
+      `Normal approach: flaps ${fl(ac, p.finalFlaps)}, ${p.finalKias} KIAS.`,
       'Something is wrong — traffic on the runway, unstable approach, or a bounce. Decide early and commit.',
     ] },
     { id: 'power', title: 'Power — full throttle', start: m.decide, end: m.flaps20, detail: [
-      'Smoothly apply full throttle; right rudder for the left-turning tendencies.',
+      'Smoothly apply full power; right rudder for the left-turning tendencies.',
       'Stop the descent: raise the nose to a level-to-climb attitude.',
       'Expect strong nose-up force from the approach trim — hold forward pressure and trim nose down.',
     ] },
-    { id: 'flaps20', title: `Flaps to ${q.balkedFlaps}°`, start: m.flaps20, end: m.climb, detail: [
-      `POH balked landing: retract flaps to ${q.balkedFlaps}° immediately.`,
+    { id: 'flaps20', title: `Flaps to ${fl(ac, q.balkedFlaps)}`, start: m.flaps20, end: m.climb, detail: [
+      `Retract flaps to ${fl(ac, q.balkedFlaps)} right away.`,
       `Climb at ${q.balkedClimbKias} KIAS.`,
     ] },
     { id: 'positive', title: 'Positive rate, accelerate', start: m.climb, end: m.flaps10, detail: [
       'Confirm a positive rate of climb on the VSI and altimeter.',
+      ...gearUpLine(ac),
       'Move to the side of the runway if needed to keep conflicting traffic in sight; announce the go-around.',
     ] },
-    { id: 'flaps10', title: 'Flaps 10°, then up', start: m.flaps10, end: m.vy, detail: [
-      `Clear of obstacles, at a safe altitude and ${q.balkedFlapsUpKias} KIAS: flaps to 10°, then fully up in stages.`,
+    { id: 'flaps10', title: 'Flaps up in stages', start: m.flaps10, end: m.vy, detail: [
+      `Clear of obstacles, at a safe altitude and ${q.balkedFlapsUpKias} KIAS: retract the remaining flaps in stages.`,
       `Accelerate to Vy, ${p.climbKias} KIAS.`,
     ] },
     { id: 'vy', title: 'Climb at Vy, rejoin the pattern', start: m.vy, end: 0, detail: ['Trimmed, full power, on the extended centerline (or offset to the side).'] },
@@ -640,8 +660,8 @@ export function buildGoAround(ac: AircraftProfile): ManeuverRun {
     objective: 'Make a timely decision, apply power, stop the descent and clean up in stages while transitioning to a climb.',
     sim, rf, steps,
     tolerances: [
-      { id: 'balked', label: 'Balked-landing climb speed', unit: 'kt', standard: '+10 / −5 kt', value: (f) => f.ias, target: q.balkedClimbKias, minus: 5, plus: 10, windows: [[m.climb + 2, m.flaps10]] },
-      { id: 'vy', label: 'Climb speed (Vy)', unit: 'kt', standard: '+10 / −5 kt', value: (f) => f.ias, target: p.climbKias, minus: 5, plus: 10, windows: [[m.vy, m.vy + 10]] },
+      { id: 'balked', label: 'Balked-landing climb speed', unit: 'kt', standard: st.approach.label, value: (f) => f.ias, target: q.balkedClimbKias, minus: st.approach.minus, plus: st.approach.plus, windows: [[m.climb + 2, m.climb + 7]] },
+      { id: 'vy', label: 'Climb speed (Vy)', unit: 'kt', standard: st.climb.label, value: (f) => f.ias, target: p.climbKias, minus: st.climb.minus, plus: st.climb.plus, windows: [[m.vy, m.vy + 10]] },
     ],
     bugs: { altitudeFt: APT.elevFt + APT.tpaAglFt, heading: rf.hdg, ias: q.balkedClimbKias },
     notes: [],

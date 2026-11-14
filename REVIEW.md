@@ -40,3 +40,96 @@ Items marked **check** are technique choices that vary between schools.
 |---|---|---|
 | Emergency descent | 4,000 → 2,000 ft MSL, idle, 40° bank, 120 KIAS clean, ~2,000 fpm | **check** clean/120 vs flaps-down technique |
 | Emergency approach | Best glide 68, engine-failure checklist from the POH, overhead approach to a field, flaps 20° on final, terminated at 500 ft AGL | Checklist wording; field selection |
+
+---
+
+# Additions: P-Mentor, DA42, Commercial, CFI and Multi add-on
+
+Sources: Tecnam P-Mentor AFM (sections 2, 4, 5), DA42 AFM Doc. 7.01.05-E Rev. 8 (N327TS), and the school ASEL Maneuvers Guide. Items marked **check** are my assumptions, not from those documents.
+
+## How sections map to airplanes
+
+| Section | Airplanes | Standards used |
+|---|---|---|
+| Private | C172S, P-Mentor | Private ACS |
+| Commercial | C172S, P-Mentor | Commercial ACS: steep turns 50°, speeds ±5 kt, landings within 200 ft (short-field 100 ft), slow flight ±50 ft |
+| CFI | C172S, P-Mentor | Commercial standards, plus the three demonstration stalls |
+| Multi add-on | DA42 | Commercial ACS (AMEL) |
+
+**check:** task codes. Commercial codes reuse the Private area/task letters with a `CA` prefix; the CFI demonstration stalls are shown as `AI.X.F/G/H`. Verify against the current ACS documents.
+
+## Tecnam P-Mentor
+
+| Item | Value | Source |
+|---|---|---|
+| Vr / Vx / Vy / glide | 53 / 65 / 70 / 70 KIAS | AFM 4-4 |
+| Vs0 / Vs1 | 45 / 50 KIAS | AFM 5-7 |
+| Va / Vno / Vne | 102 / 107 / 135 KIAS | AFM 2-4 |
+| Vfe T/O / LAND | 106 / 96 KIAS | AFM 2-4 |
+| Cruise | 23" MP / 2,060 RPM | Guide |
+| Ground reference | 20" MP / 2,060 RPM | Guide |
+| Power back to slow | 14" MP / full prop | Guide |
+| Power-on stall | 1 notch flaps, slow to 60, 17" MP / full prop, max 15° pitch | Guide |
+| Pattern | crosswind at 400 ft AGL, downwind 80, base 70, final 60, touchdown ~55 | Guide |
+| Short-field final | 55 KIAS | Guide |
+| Accelerated stall entry | 80 KIAS | Guide |
+| Power-off 180 glide | 70 KIAS | Guide |
+
+**check:**
+- Cruise speed at 23"/2,060 taken as 95 KIAS (used as the entry speed for steep turns, chandelles and lazy eights).
+- Slow-flight holding power shown as 18" MP (the guide says it varies).
+- Steep-turn power increase shown as +2" MP (the guide says 200–300 RPM, which is P2002 wording).
+- Takeoff with flaps T/O, flaps up above 300 ft AGL; soft-field liftoff ~45, touchdown ~46; go-around climb 61 (Vy, flaps T/O).
+- Emergency descent at 100 KIAS, 40° bank.
+- Flap angles 15°/35° are assumed and only affect the animation.
+- The PFD is drawn G1000-style; the P-Mentor has a G3X Touch.
+
+## Guide items where the app differs or needs a decision
+
+- **Eights on pylons entry:** the guide says "enter upwind"; the app enters diagonally with the wind behind, as in the Airplane Flying Handbook.
+- **Emergency descent altitude:** the guide's set-up line says "between 600 and 1,000 AGL", which looks copied from the ground-reference pages. The app starts 3,000 ft AGL.
+- **C172S pattern:** still turns crosswind 300 ft below pattern altitude. Say if it should match the guide's 400 ft AGL.
+- **Steep spiral:** the app's bank ranges about 30–47° for a constant radius in 10 kt of wind.
+
+## Diamond DA42 (TAE 125 diesels)
+
+| Item | Value | Source |
+|---|---|---|
+| Vr / Vy (= Vx) | 72 / 79 KIAS (above 1,700 kg) | AFM 4A.2 |
+| Approach flaps UP / APP / LDG | 86 / 82 / 78 KIAS | AFM 4A.2 |
+| Go-around minimum | 82 KIAS | AFM 4A.2 |
+| Vmca / Vyse | 68 / 82 KIAS | AFM 2.2, 2.3 |
+| Stall clean / LDG | 64 / 57 KIAS (1,785 kg) | AFM 5.3.4 |
+| Va | 120–126 KIAS | AFM 2.2 |
+| Vfe APP / LDG, Vle | 137 / 111, 194 KIAS | AFM 2.2 |
+| Restart envelope | 80–120 KIAS | AFM 2.4 |
+
+**check — power settings are mine, not from the AFM:** cruise 65% load, downwind 45%, approach 30%, slow flight 50%, power-on stall 65%, single-engine level flight 85%, single-engine approach 55%.
+
+**check — technique:**
+- Pattern 100 / 90 / 78 KIAS, gear down on downwind, flaps APP abeam, LDG on final, touchdown ~65.
+- Steep turns and airwork at 120 KIAS and 4,500 ft MSL.
+- Slow flight at 66 KIAS, gear down, flaps LDG.
+- Accelerated stall entry 92 KIAS.
+- Emergency descent clean at 120 KIAS, 40° bank.
+- Vmc demo: left engine idle, right 100%, stops at 70 KIAS (stall warning margin), recovery to 82.
+- Engine failure after liftoff at 400 ft AGL; single-engine climb shown at 200 fpm.
+- Feathering wording "ENGINE MASTER OFF" — confirm against the AFM checklist; critical engine is listed as none.
+- The left engine is the failed one in every scenario.
+
+## Commercial and CFI maneuvers (both singles)
+
+| Maneuver | Shown |
+|---|---|
+| Chandelle | Left, entry at cruise, 30° bank, pitch to 12.5°, ends ~6 kt above clean stall |
+| Lazy eight | Right then left, 15° bank at 45°, 30° at 90°, ~250 ft gained, minimum speed ~1.3 Vs |
+| Eights on pylons | Pylons 0.9 nm apart, 10 kt wind, altitude follows GS²/11.3 |
+| Steep spiral | Three turns from 4,500 ft AGL at best glide |
+| Power-off 180 | 850 m downwind offset, calm wind, flaps T/O (10°) on base, full on final |
+| Accelerated stall | 3,500 ft AGL, 45° bank, recover at the warning |
+| Secondary / cross-controlled / elevator trim stalls | Entered from an idle glide, recovered at first indication |
+
+## 3D models
+
+- **DA42** (helijah, CC BY 4.0) and the **P2002 stand-in** are single-mesh models: control surfaces and landing gear do not move on them. The controls panel still shows every input.
+- The **P2002** model's Sketchfab Standard licence does not allow the file to be redistributed, so it is not in the repository. Without it the P-Mentor shows a built-in low-wing stand-in.

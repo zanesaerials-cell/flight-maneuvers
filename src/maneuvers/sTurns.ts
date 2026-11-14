@@ -1,4 +1,4 @@
-import type { AircraftProfile } from '../data/aircraft';
+import { pwT, type AircraftProfile } from '../data/aircraft';
 import {
   D2R, FT, G, KT, R2D, angDiff, finalize, resample, tasFromIas, wrap360, type RawSample,
 } from '../engine/kinematics';
@@ -125,7 +125,7 @@ export function buildSTurns(ac: AircraftProfile): ManeuverRun {
       detail: [
         'Pick a straight road (or section line) perpendicular to the wind, with emergency landing spots nearby.',
         `Altitude 600–1,000 ft AGL. Shown at ${p.aglFt} ft AGL (${altFt.toLocaleString()} ft MSL).`,
-        `Power about ${p.rpm.toLocaleString()} RPM for ${p.ias} KIAS, trimmed for level flight.`,
+        `Power about ${pwT(ac, p.rpm)} for ${p.ias} KIAS, trimmed for level flight.`,
         `Enter on the downwind side heading ${String(Math.round(downwind)).padStart(3, '0')}° with the ${p.windKt} kt wind at your tail.`,
         'Clear the area before you start.',
       ],

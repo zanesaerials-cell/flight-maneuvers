@@ -1,4 +1,5 @@
-import type { AircraftProfile } from '../data/aircraft';
+import { fl, pwFrac, pwT, type AircraftProfile, type Cert } from '../data/aircraft';
+import { std } from './standards';
 import { KCXW, type AirportDef } from '../data/airports';
 import {
   D2R, FT, G, KT, R2D, angDiff, clamp, ease, finalize, lerp, smoothstep, tasFromIas, wrap360, type RawSample,
@@ -18,7 +19,8 @@ const dot = (a: V2, b: V2) => a.e * b.e + a.n * b.n;
  * Scene north is magnetic north so headings match the PFD and runway numbers.
  * The runway centre is the scene origin.
  */
-export function buildPattern(ac: AircraftProfile, apt: AirportDef = KCXW, runwayEnd = '22'): ManeuverRun {
+export function buildPattern(ac: AircraftProfile, cert: Cert = 'private', apt: AirportDef = KCXW, runwayEnd = '22'): ManeuverRun {
+  const st = std(cert);
   const p = ac.procedures.pattern;
   if (!p) throw new Error(`${ac.shortName} has no pattern profile`);
 
@@ -42,12 +44,13 @@ export function buildPattern(ac: AircraftProfile, apt: AirportDef = KCXW, runway
 
   // ---------- Live state ----------
   const s = {
-    t: 0, e: 0, n: 0, hdg: rwyHdg, bank: 0, ias: 0, rpm: 1000, flaps: p.takeoffFlaps,
+    t: 0, e: 0, n: 0, hdg: rwyHdg, bank: 0, ias: 0, rpm: ac.pw.taxi, flaps: p.takeoffFlaps, gear: 1,
     alt: elev, vs: 0, dist: 0, throttle: 0.15, trim: 0, elevBias: 0, rudderBias: 0, onGround: true,
   };
   const start = { e: u.e * (threshold + 15), n: u.n * (threshold + 15) };
   s.e = start.e; s.n = start.n;
-  const target = { ias: 0, accel: 1.2, flaps: p.takeoffFlaps, rpm: 1000, throttle: 0.15, trim: 0, vs: 0 };
+  const target = { ias: 0, accel: 1.2, flaps: p.takeoffFlaps, rpm: ac.pw.taxi, throttle: 0.15, trim: 0, vs: 0, gear: 1 };
+  const xwAgl = p.crosswindAglFt ?? apt.tpaAglFt - 300;
   const raw: RawSample[] = [];
   const ground: boolean[] = [];
   const dists: number[] = [];
@@ -61,7 +64,7 @@ export function buildPattern(ac: AircraftProfile, apt: AirportDef = KCXW, runway
     raw.push({
       t: s.t, east: s.e, north: s.n, altFt: s.alt, heading: wrap360(s.hdg), bank: s.bank,
       ias: s.ias, tas: tasFromIas(s.ias, s.alt), rpm: s.rpm, flaps: s.flaps,
-      throttle: s.throttle, trim: s.trim, elevBias: s.elevBias, rudderBias: s.rudderBias,
+      throttle: s.throttle, trim: s.trim, elevBias: s.elevBias, rudderBias: s.rudderBias, gear: s.gear,
     });
     ground.push(s.onGround);
     dists.push(s.dist);
@@ -74,7 +77,8 @@ export function buildPattern(ac: AircraftProfile, apt: AirportDef = KCXW, runway
       s.ias = approach(s.ias, target.ias, target.accel);
     }
     s.flaps = approach(s.flaps, target.flaps, 3);
-    s.rpm = approach(s.rpm, target.rpm, 250);
+    s.rpm = approach(s.rpm, target.rpm, (250 / 2050) * (ac.rpm.max - ac.rpm.idle));
+    s.gear = approach(s.gear, target.gear, 0.2);
     s.throttle = approach(s.throttle, target.throttle, 0.5);
     s.trim = approach(s.trim, target.trim, 0.15);
     if (!s.onGround) {
@@ -95,8 +99,11 @@ export function buildPattern(ac: AircraftProfile, apt: AirportDef = KCXW, runway
   };
 
   // Climb with automatic level-off at pattern altitude (lead ≈ 10 % of VSI).
+  let cleanUp = true;
   const climbLaw = () => {
     const toGo = tpa - s.alt;
+    if (cleanUp && s.alt - elev > 300) target.flaps = 0;
+    if (cleanUp && ac.retractable && s.alt - elev > 60) target.gear = 0;
     target.vs = toGo > 70 ? p.climbFpm : Math.max(0, p.climbFpm * (toGo / 70));
   };
 
@@ -162,7 +169,7 @@ export function buildPattern(ac: AircraftProfile, apt: AirportDef = KCXW, runway
   climbUntil(() => s.ias >= p.climbKias - 1 || s.t - marks.liftoff > 8);
   mark('vy');
   // Upwind: past the departure end and within 300 ft of pattern altitude.
-  climbUntil(() => s.alt >= tpa - 300 && along(pos()) > departEnd);
+  climbUntil(() => s.alt >= elev + xwAgl && along(pos()) > departEnd);
   mark('crosswindTurn');
   const crosswindHdg = wrap360(rwyHdg + 90 * turnSign);
   turnTo(crosswindHdg, climbLaw);
@@ -176,7 +183,7 @@ export function buildPattern(ac: AircraftProfile, apt: AirportDef = KCXW, runway
       leveled = true; mark('level');
       target.ias = p.downwindKias; target.accel = 0.8; target.trim = 0.1;
     }
-    if (leveled && s.ias > p.downwindKias - 4) { target.rpm = p.downwindRpm; target.throttle = 0.72; }
+    if (leveled && s.ias > p.downwindKias - 4) { target.rpm = p.downwindRpm; target.throttle = pwFrac(ac, p.downwindRpm); }
     tick();
   }
   mark('downwindTurn');
@@ -184,15 +191,16 @@ export function buildPattern(ac: AircraftProfile, apt: AirportDef = KCXW, runway
   turnTo(downwindHdg, () => {
     climbLaw();
     if (!leveled && s.alt > tpa - 5) { leveled = true; mark('level'); target.ias = p.downwindKias; target.accel = 0.8; target.trim = 0.1; }
-    if (leveled && s.ias > p.downwindKias - 4) { target.rpm = p.downwindRpm; target.throttle = 0.72; }
+    if (leveled && s.ias > p.downwindKias - 4) { target.rpm = p.downwindRpm; target.throttle = pwFrac(ac, p.downwindRpm); }
   });
-  target.rpm = p.downwindRpm; target.throttle = 0.72; target.ias = p.downwindKias; target.trim = 0.1;
+  target.rpm = p.downwindRpm; target.throttle = pwFrac(ac, p.downwindRpm); target.ias = p.downwindKias; target.trim = 0.1;
   mark('downwind');
+  cleanUp = false; target.gear = 1;
   // Downwind: level at pattern altitude until abeam the touchdown end of the runway.
-  while (along(pos()) > threshold) { target.vs = 0; tick(); }
+  while (along(pos()) > threshold) { climbLaw(); tick(); }
   mark('abeam');
   // Abeam the numbers: power back, first notch of flaps, start down.
-  target.rpm = p.abeamRpm; target.throttle = 0.4; target.ias = p.abeamKias; target.accel = 1.0; target.flaps = p.abeamFlaps; target.trim = 0.3;
+  target.rpm = p.abeamRpm; target.throttle = pwFrac(ac, p.abeamRpm); target.ias = p.abeamKias; target.accel = 1.0; target.flaps = p.abeamFlaps; target.trim = 0.3;
   // Turn base when the threshold is 45° behind the wing: distance past it equals the lateral offset.
   while (threshold - along(pos()) < lateral(pos())) tick();
   mark('baseTurn');
@@ -299,13 +307,13 @@ export function buildPattern(ac: AircraftProfile, apt: AirportDef = KCXW, runway
         `${apt.name}: runway ${rwy.ends.map((x) => x.replace(/^0/, '')).join('/')}, ${rwy.lengthFt.toLocaleString()} × ${rwy.widthFt} ft, field elevation ${elev} ft.`,
         `${traffic === 'left' ? 'Left' : 'Right'} traffic, pattern altitude ${tpaS} ft MSL (${apt.tpaAglFt.toLocaleString()} ft AGL).`,
         'Before-takeoff checklist complete. Announce your departure on the CTAF.',
-        `Flaps ${p.takeoffFlaps}° (POH allows 0–10°), mixture rich, heading bug on runway heading ${fmtH(rwyHdg)}.`,
+        `Flaps ${fl(ac, p.takeoffFlaps)}, ${ac.text.lineup}, heading bug on runway heading ${fmtH(rwyHdg)}.`,
       ],
     },
     {
       id: 'roll', title: 'Takeoff roll', start: marks.roll, end: marks.rotate,
       detail: [
-        'Smoothly apply full throttle. Check RPM and engine gauges in the green.',
+        'Smoothly apply full power. Check engine gauges in the green.',
         'Right rudder to hold the centerline as P-factor and slipstream build.',
         'Check airspeed alive.',
       ],
@@ -320,10 +328,12 @@ export function buildPattern(ac: AircraftProfile, apt: AirportDef = KCXW, runway
     {
       id: 'climb', title: `Climb at Vy, ${p.climbKias} KIAS`, start: marks.liftoff + 2, end: marks.crosswindTurn,
       detail: [
-        `Pitch about 10° nose up for ${p.climbKias} KIAS, full power (about ${p.climbRpm.toLocaleString()} RPM).`,
+        `Pitch about 10° nose up for ${p.climbKias} KIAS, full power.`,
+        ...(ac.retractable ? ['Positive rate, no usable runway remaining: gear UP.'] : []),
+        ...(p.takeoffFlaps > 0 ? ['Above 300 ft AGL, flaps up.'] : []),
         'Keep right rudder in — the ball stays centered.',
         'Trim to relieve back pressure.',
-        `Stay on runway heading until past the departure end and within 300 ft of pattern altitude (${(tpa - 300).toLocaleString()} ft).`,
+        `Stay on runway heading until past the departure end and ${xwAgl} ft AGL (${(elev + xwAgl).toLocaleString()} ft); run the climb checklist.`,
       ],
     },
     {
@@ -331,23 +341,23 @@ export function buildPattern(ac: AircraftProfile, apt: AirportDef = KCXW, runway
       detail: [
         `Clear left, then a climbing ${traffic} turn at ${p.turnBankDeg}° bank to ${fmtH(crosswindHdg)}.`,
         `Level off at ${tpaS} ft — start leveling about 70 ft early.`,
-        `Let it accelerate, then reduce to ${p.downwindRpm.toLocaleString()} RPM and trim.`,
+        `Let it accelerate, then reduce to ${pwT(ac, p.downwindRpm)} and trim.`,
       ],
     },
     {
       id: 'downwind', title: 'Downwind', start: marks.downwindTurn, end: marks.abeam,
       detail: [
         `Turn to ${fmtH(downwindHdg)}, about ${(p.downwindOffsetM / 1852).toFixed(1)} nm from the runway — the runway sits about halfway up the strut.`,
-        `${tpaS} ft, ${p.downwindRpm.toLocaleString()} RPM, about ${p.downwindKias} KIAS.`,
-        'Before-landing checklist: fuel selector BOTH, mixture rich, landing light on, seatbelts.',
+        `${tpaS} ft, ${pwT(ac, p.downwindRpm)}, about ${p.downwindKias} KIAS.`,
+        ac.text.beforeLanding,
         'Announce downwind on the CTAF.',
       ],
     },
     {
       id: 'abeam', title: 'Abeam the numbers', start: marks.abeam, end: marks.baseTurn,
       detail: [
-        `Power to ${p.abeamRpm.toLocaleString()} RPM.`,
-        `Below 110 KIAS, flaps ${p.abeamFlaps}°.`,
+        `Power to ${pwT(ac, p.abeamRpm)}.`,
+        `Flaps ${fl(ac, p.abeamFlaps)} (first notch).`,
         `Pitch for ${p.abeamKias} KIAS and trim — the descent starts on its own.`,
       ],
     },
@@ -356,7 +366,7 @@ export function buildPattern(ac: AircraftProfile, apt: AirportDef = KCXW, runway
       detail: [
         'Turn when the runway threshold is about 45° behind the wing.',
         `${p.turnBankDeg}° bank to ${fmtH(baseHdg)}. Announce base.`,
-        `Flaps ${p.baseFlaps}° (below 85 KIAS), ${p.baseKias} KIAS, trim.`,
+        p.baseFlaps !== p.abeamFlaps ? `Flaps ${fl(ac, p.baseFlaps)}, ${p.baseKias} KIAS, trim.` : `${p.baseKias} KIAS, keep descending, trim.`,
         'Look down the final approach path for traffic before turning final.',
       ],
     },
@@ -364,7 +374,7 @@ export function buildPattern(ac: AircraftProfile, apt: AirportDef = KCXW, runway
       id: 'final', title: 'Turn final, stabilize', start: marks.finalTurn, end: marks.threshold,
       detail: [
         `Lead the turn so you roll out on the extended centerline, heading ${fmtH(rwyHdg)}.`,
-        `Flaps ${p.finalFlaps}°, ${p.finalKias} KIAS (POH: 60–70 KIAS with full flaps). Trim.`,
+        `Flaps ${fl(ac, p.finalFlaps)}, ${p.finalKias} KIAS. Trim.`,
         `Pick your aim point — shown 1,000 ft down the runway. Keep it fixed in the windshield.`,
         'Stabilized: on speed, on centerline, about 500 fpm down.',
       ],
@@ -388,8 +398,8 @@ export function buildPattern(ac: AircraftProfile, apt: AirportDef = KCXW, runway
 
   const tolerances: Tolerance[] = [
     {
-      id: 'climb', label: 'Climb speed (Vy)', unit: 'kt', standard: '+10 / −5 kt',
-      value: (f) => f.ias, target: p.climbKias, minus: 5, plus: 10,
+      id: 'climb', label: 'Climb speed (Vy)', unit: 'kt', standard: st.climb.label,
+      value: (f) => f.ias, target: p.climbKias, minus: st.climb.minus, plus: st.climb.plus,
       windows: [[marks.vy + 5, marks.crosswindTurn]],
     },
     {
@@ -403,14 +413,14 @@ export function buildPattern(ac: AircraftProfile, apt: AirportDef = KCXW, runway
       windows: [[marks.downwind + 5, marks.abeam - 0.5]],
     },
     {
-      id: 'final', label: 'Approach speed', unit: 'kt', standard: '+10 / −5 kt',
-      value: (f) => f.ias, target: p.finalKias, minus: 5, plus: 10,
-      windows: [[marks.final + 4, marks.threshold]],
+      id: 'final', label: 'Approach speed', unit: 'kt', standard: st.approach.label,
+      value: (f) => f.ias, target: p.finalKias, minus: st.approach.minus, plus: st.approach.plus,
+      windows: [[marks.final + 12, marks.threshold]],
     },
     {
-      id: 'td', label: 'Touchdown past aim point', unit: 'ft', standard: '0 to +400 ft',
-      value: (f) => (along({ e: f.east, n: f.north }) - aimAlong) / FT, target: 200, minus: 200, plus: 200,
-      windows: [[marks.touchdown, marks.touchdown + 0.6]],
+      id: 'td', label: 'Touchdown past aim point', unit: 'ft', standard: `0 to +${st.tdNormal} ft`,
+      value: (f) => (along({ e: f.east, n: f.north }) - aimAlong) / FT, target: st.tdNormal / 2, minus: st.tdNormal / 2, plus: st.tdNormal / 2,
+      windows: [[marks.touchdown, marks.touchdown + 0.1]],
     },
   ];
 

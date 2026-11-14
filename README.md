@@ -9,7 +9,7 @@ Shows each Private Pilot ACS maneuver flown to the standard, for a specific airp
 
 A maneuver plays on its own by default. You can also scrub it with the slider or jump between steps.
 
-The current version covers the Cessna 172S (G1000) with Steep Turns and S-Turns. The S-Turns are flown with a 10 kt wind.
+Airplanes: Cessna 172S, Tecnam P-Mentor and Diamond DA42 (TAE 125). After choosing an airplane, the student picks a checkride — Private, Commercial, CFI or the Commercial Multi-Engine add-on — and sees only that checkride's maneuvers, flown to its standards and with that airplane's power settings and configuration.
 
 ## Run it
 
@@ -91,6 +91,12 @@ The ailerons, flaps, elevator and rudder rotate about their real hinge lines. `W
 2. Orient it nose −Z, right wing +X, up +Y, with the origin at the CG.
 3. Load it with drei `useGLTF` and drive those nodes as `Cessna172.tsx` does.
 4. Update `WHEEL_CONTACTS` to match the model's tires.
+
+## P-Mentor model
+
+The P-Mentor uses a Tecnam P2002 Sierra model as a look-alike. That model is under the Sketchfab Standard licence, which does not allow redistributing the file, so `public/models/p2002.glb` is git-ignored. To use it on a deployment you control, convert the Sketchfab download with `node tools/prepare-static-model.mjs scene.gltf public/models/p2002.glb rig.json -1.15 0 1`, then fill in `model.credit` for the P-Mentor in `src/data/aircraft.ts`. Without the file the app shows a built-in low-wing stand-in.
+
+`src/data/modelRigs.ts` holds each model's tire contact points and propeller positions.
 
 ## Content review
 

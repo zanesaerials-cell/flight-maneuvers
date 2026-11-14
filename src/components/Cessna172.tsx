@@ -241,7 +241,10 @@ function tube(from: THREE.Vector3, to: THREE.Vector3, rx: number, ry: number, ma
 
 // ---- Component -------------------------------------------------------------
 
-export function Cessna172({ getFrame }: { getFrame: () => Frame }) {
+export function Cessna172({ getFrame, lowWing = false, twin = false }: { getFrame: () => Frame; lowWing?: boolean; twin?: boolean }) {
+  void twin;
+  // The same wing mounted under the fuselage, without struts, stands in for low-wing types.
+  const wingDrop = lowWing ? -1.0 : 0;
   const lAil = useRef<THREE.Group>(null), rAil = useRef<THREE.Group>(null);
   const lFlap = useRef<THREE.Group>(null), rFlap = useRef<THREE.Group>(null);
   const lElev = useRef<THREE.Group>(null), rElev = useRef<THREE.Group>(null);
@@ -379,6 +382,7 @@ export function Cessna172({ getFrame }: { getFrame: () => Frame }) {
     <group>
       <mesh geometry={geo.fuselage} material={mats.skin} />
 
+      <group position={[0, wingDrop, 0]}>
       {/* Wing */}
       {geo.wingParts.map((g, i) => <mesh key={i} geometry={g} material={mats.white} />)}
       {geo.tipCaps.map((g, i) => <mesh key={`t${i}`} geometry={g} material={mats.white} />)}
@@ -390,8 +394,9 @@ export function Cessna172({ getFrame }: { getFrame: () => Frame }) {
       <mesh position={[-SEMISPAN + 0.02, wingYAt(SEMISPAN), WING_LE_Z + 0.25]} material={mats.red}><sphereGeometry args={[0.05, 8, 8]} /></mesh>
       <mesh position={[SEMISPAN - 0.02, wingYAt(SEMISPAN), WING_LE_Z + 0.25]} material={mats.green}><sphereGeometry args={[0.05, 8, 8]} /></mesh>
 
+      </group>
       {/* Lift struts */}
-      {[-1, 1].map((s) => tube(v(s * 0.5, -0.36, -0.02), v(s * 2.55, wingYAt(2.55) - 0.08, 0.02), 0.045, 0.02, mats.white, `s${s}`))}
+      {!lowWing && [-1, 1].map((s) => tube(v(s * 0.5, -0.36, -0.02), v(s * 2.55, wingYAt(2.55) - 0.08, 0.02), 0.045, 0.02, mats.white, `s${s}`))}
 
       {/* Empennage */}
       <mesh geometry={geo.stabR} material={mats.white} />

@@ -14,6 +14,10 @@ export interface ControlState {
   flaps: number;
   /** Trim. −1 full nose down … +1 full nose up. */
   trim: number;
+  /** Landing gear. 1 down, 0 up (always 1 for fixed gear). */
+  gear: number;
+  /** Right engine power lever on a twin (same scale as throttle, which is the left). */
+  throttleR: number;
 }
 
 /** One instant of the maneuver. Positions are metres from the scene origin. */
@@ -37,6 +41,8 @@ export interface Frame {
   c: ControlState;
   /** Cockpit warning in effect, e.g. the stall horn. */
   warn?: string;
+  /** Left engine failed or shut down (twin). */
+  oei?: boolean;
 }
 
 export interface Step {
@@ -96,6 +102,8 @@ export interface ManeuverRun {
   title: string;
   acsCode: string;
   acsTask: string;
+  /** Which ACS the code refers to, e.g. "Commercial Pilot ACS". */
+  acsDoc?: string;
   objective: string;
   frames: Frame[];
   dt: number;

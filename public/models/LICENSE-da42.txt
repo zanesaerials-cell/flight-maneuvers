@@ -1,0 +1,10 @@
+Diamond DA42 3D model
+
+This work is based on "Diamond Da42 "Twin Star""
+(https://sketchfab.com/3d-models/diamond-da42-twin-star-d83b6e776955401f87f7bc2ad5d5a252)
+by helijah (https://sketchfab.com/helijah),
+licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/).
+
+Changes made for this app: re-oriented, origin moved to the centre of gravity,
+textures converted to WebP and reduced, geometry compressed with meshopt.
+Processing script: tools/prepare-static-model.mjs

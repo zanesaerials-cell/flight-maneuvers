@@ -45,8 +45,17 @@ export interface RawSample {
   aileronBias?: number;
   slip?: number;
   warn?: string;
+  gear?: number;
+  throttleR?: number;
+  oei?: boolean;
   throttle?: number;
   trim?: number;
+}
+
+/** Level-flight pitch attitude for a speed and flap deflection. */
+export function levelPitch(ac: AircraftProfile, ias: number, flapsDeg: number) {
+  const full = ac.flapDetents[ac.flapDetents.length - 1] || 30;
+  return 1.5 + (ac.cruiseKias - ias) * (0.15 * 95 / ac.cruiseKias) - flapsDeg * (2.4 / full);
 }
 
 export interface FinalizeOptions {
@@ -80,12 +89,12 @@ export function finalize(raw: RawSample[], ac: AircraftProfile, opts: FinalizeOp
 
     // Pitch attitude: level-flight attitude for the speed/flap setting,
     // plus the extra angle of attack a bank demands, plus any climb angle.
-    const levelPitch = 1.5 + (95 - s.ias) * 0.15 - s.flaps * 0.08;
+    const lvl = levelPitch(ac, s.ias, s.flaps);
     const aoaInTurn = 3.0 * (loadFactor - 1) / (Math.SQRT2 - 1);
     const climb = Math.atan2(vsi * FT / 60, s.tas * KT) * R2D;
-    const pitch = s.pitch ?? levelPitch + aoaInTurn + climb;
+    const pitch = s.pitch ?? lvl + aoaInTurn + climb;
 
-    const powerAbove = (s.rpm - opts.cruiseRpm) / 100;
+    const powerAbove = ((s.rpm - opts.cruiseRpm) / (ac.rpm.max - ac.rpm.idle)) * 20.5;
     const c: ControlState = {
       // Roll rate needs aileron; once established in a steep bank a little
       // opposite aileron stops the overbanking tendency.
@@ -95,11 +104,13 @@ export function finalize(raw: RawSample[], ac: AircraftProfile, opts: FinalizeOp
       elevator: clamp(0.55 * (loadFactor - 1) + (s.elevBias ?? vsi / 4000), -1, 1),
       // Rudder with aileron to cancel adverse yaw, plus a touch of right
       // rudder when power comes up (P-factor / slipstream).
-      rudder: clamp(rollRate / 30 + 0.05 * Math.max(0, powerAbove) + (s.rudderBias ?? 0), -1, 1),
+      rudder: clamp(rollRate / 30 + (ac.engines === 2 ? 0.01 : 0.05) * Math.max(0, powerAbove) + (s.rudderBias ?? 0), -1, 1),
       throttle: s.throttle ?? clamp((s.rpm - ac.rpm.idle) / (ac.rpm.max - ac.rpm.idle), 0, 1),
       mixture: 1,
       flaps: s.flaps,
       trim: s.trim ?? opts.trim,
+      gear: s.gear ?? 1,
+      throttleR: s.throttleR ?? s.throttle ?? clamp((s.rpm - ac.rpm.idle) / (ac.rpm.max - ac.rpm.idle), 0, 1),
     };
 
     return {
@@ -108,12 +119,13 @@ export function finalize(raw: RawSample[], ac: AircraftProfile, opts: FinalizeOp
       ias: s.ias, tas: s.tas, gs: gsMs / KT, vsi, rpm: s.rpm,
       turnRate, loadFactor, c,
       ...(s.warn ? { warn: s.warn } : {}),
+      ...(s.oei ? { oei: true } : {}),
     };
   });
 
   // Gentle smoothing of control inputs so the yoke and pedals move like hands and feet.
   const win = 4;
-  const keys: (keyof ControlState)[] = ['aileron', 'elevator', 'rudder', 'throttle', 'trim'];
+  const keys: (keyof ControlState)[] = ['aileron', 'elevator', 'rudder', 'throttle', 'throttleR', 'trim'];
   const smoothed = frames.map((f, i) => {
     const c = { ...f.c };
     for (const k of keys) {
@@ -147,6 +159,7 @@ export function sampleAt(frames: Frame[], dt: number, t: number): Frame {
     ias: L('ias'), tas: L('tas'), gs: L('gs'), vsi: L('vsi'), rpm: L('rpm'),
     turnRate: L('turnRate'), loadFactor: L('loadFactor'), c,
     ...(a.warn ? { warn: a.warn } : {}),
+    ...(a.oei ? { oei: true } : {}),
   };
 }
 
@@ -165,6 +178,7 @@ export function resample(samples: RawSample[], dt: number): RawSample[] {
       altFt: lerp(a.altFt, b.altFt, u), heading: lerpAngle(a.heading, b.heading, u),
       bank: lerp(a.bank, b.bank, u), ias: lerp(a.ias, b.ias, u), tas: lerp(a.tas, b.tas, u),
       rpm: lerp(a.rpm, b.rpm, u), flaps: lerp(a.flaps, b.flaps, u),
+      ...(a.gear !== undefined ? { gear: a.gear } : {}),
       ...(a.pitch !== undefined && b.pitch !== undefined ? { pitch: lerp(a.pitch, b.pitch, u) } : {}),
       ...(a.elevBias !== undefined ? { elevBias: lerp(a.elevBias, b.elevBias ?? a.elevBias, u) } : {}),
       ...(a.rudderBias !== undefined ? { rudderBias: lerp(a.rudderBias, b.rudderBias ?? a.rudderBias, u) } : {}),

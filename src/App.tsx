@@ -1,6 +1,7 @@
 import { memo, useEffect, useMemo, useState } from 'react';
-import { AIRCRAFT, getAircraft, type AircraftProfile } from './data/aircraft';
-import { MANEUVERS, isReady, type ManeuverDef } from './maneuvers';
+import { AIRCRAFT, getAircraft, type AircraftProfile, type Cert } from './data/aircraft';
+import { MANEUVERS, buildManeuver, isReady, maneuversFor, type ManeuverDef } from './maneuvers';
+import { certInfo } from './maneuvers/standards';
 import { sampleAt } from './engine/kinematics';
 import { playback, usePlayback } from './store/playback';
 import { Scene3D, type ViewMode } from './components/Scene3D';
@@ -8,8 +9,9 @@ import { G1000PFD } from './components/G1000PFD';
 import { ControlsPanel } from './components/ControlsPanel';
 import { AcsPanel, StepsPanel, Transport } from './components/Panels';
 
-/* Hash routes: #c172s and #c172s--steep-turns. Plain names keep links shareable anywhere, no server config needed. */
-export const routeHref = (acId?: string, mId?: string) => (acId ? `#${acId}${mId ? `--${mId}` : ''}` : '#');
+/* Hash routes: #c172s, #c172s--commercial and #c172s--commercial--chandelle. Plain names keep links shareable anywhere. */
+export const routeHref = (acId?: string, cert?: string, mId?: string) =>
+  (acId ? `#${[acId, cert, mId].filter(Boolean).join('--')}` : '#');
 function useRoute() {
   const read = () => window.location.hash.replace(/^#\/?/, '').split('--').filter(Boolean);
   const [parts, setParts] = useState(read);
@@ -22,26 +24,29 @@ function useRoute() {
 }
 
 export default function App() {
-  const [acId, mId] = useRoute();
+  const [acId, certId, mId] = useRoute();
   const ac = acId ? getAircraft(acId) : undefined;
-  const m = ac && mId ? MANEUVERS.find((x) => x.id === mId) : undefined;
-  if (ac && m && isReady(m, ac)) return <Viewer ac={ac} def={m} />;
-  return <Home ac={ac?.available ? ac : undefined} />;
+  // An airplane with a single section (the twin) goes straight to it.
+  const cert = ac && (ac.certs.find((c) => c === certId) ?? (ac.certs.length === 1 ? ac.certs[0] : undefined));
+  const m = ac && cert && mId ? MANEUVERS.find((x) => x.id === mId) : undefined;
+  if (ac && cert && m && isReady(m, ac, cert)) return <Viewer ac={ac} cert={cert} def={m} />;
+  return <Home ac={ac?.available ? ac : undefined} cert={cert} />;
 }
 
-function Home({ ac }: { ac?: AircraftProfile }) {
+function Home({ ac, cert }: { ac?: AircraftProfile; cert?: Cert }) {
   const groups = useMemo(() => {
+    if (!ac || !cert) return [];
     const g = new Map<string, ManeuverDef[]>();
-    MANEUVERS.forEach((m) => g.set(m.group, [...(g.get(m.group) ?? []), m]));
-    // Groups with finished maneuvers first, so the ready ones are on screen.
-    return [...g.entries()].sort((a, b) => Number(b[1].some((m) => m.build)) - Number(a[1].some((m) => m.build)));
-  }, []);
+    maneuversFor(ac, cert).forEach((m) => g.set(m.group, [...(g.get(m.group) ?? []), m]));
+    return [...g.entries()];
+  }, [ac, cert]);
+  const credits = AIRCRAFT.filter((a) => a.model?.credit);
 
   return (
     <main className="home">
       <header className="home-head">
         <h1>Maneuver Visualizer</h1>
-        <p>Watch each Private Pilot maneuver flown to the standard — outside view, PFD and your hands and feet, step by step, for the airplane you fly.</p>
+        <p>Watch each checkride maneuver flown to the standard — outside view, PFD and your hands and feet, step by step, for the airplane you fly.</p>
       </header>
 
       <section className="pick">
@@ -49,45 +54,51 @@ function Home({ ac }: { ac?: AircraftProfile }) {
         <div className="ac-list">
           {AIRCRAFT.map((a) => {
             const selected = ac?.id === a.id;
-            const inner = (
-              <>
+            return (
+              <a key={a.id} href={routeHref(a.id)} className={`ac-card ${selected ? 'selected' : ''}`} aria-current={selected ? 'true' : undefined}>
                 <span className="ac-name">{a.name}</span>
                 <span className="ac-blurb">{a.blurb}</span>
-                <span className={`ac-status ${a.available ? 'ready' : ''}`}>{a.available ? (selected ? 'Selected' : 'Ready') : 'Profile in progress'}</span>
-              </>
+                <span className="ac-status ready">{selected ? 'Selected' : a.certs.map((c) => certInfo(c).name.replace(' Pilot', '').replace('Flight Instructor (CFI)', 'CFI').replace('Commercial Multi-Engine Add-On', 'Multi add-on')).join(' · ')}</span>
+              </a>
             );
-            return a.available
-              ? <a key={a.id} href={routeHref(a.id)} className={`ac-card ${selected ? 'selected' : ''}`} aria-current={selected ? 'true' : undefined}>{inner}</a>
-              : <div key={a.id} className="ac-card disabled" aria-disabled="true">{inner}</div>;
           })}
         </div>
       </section>
 
       <section className={`pick ${ac ? '' : 'muted'}`}>
-        <h2><span className="pick-n">2</span>Choose a maneuver</h2>
-        {!ac && <p className="hint">Pick an airplane first — power settings and speeds come from its POH.</p>}
-        {groups.map(([group, list]) => (
+        <h2><span className="pick-n">2</span>Choose your checkride</h2>
+        {!ac && <p className="hint">Pick an airplane first — each one is used for different checkrides.</p>}
+        {ac && (
+          <div className="cert-list">
+            {ac.certs.map((c) => {
+              const info = certInfo(c), selected = cert === c;
+              return (
+                <a key={c} href={routeHref(ac.id, c)} className={`ac-card ${selected ? 'selected' : ''}`} aria-current={selected ? 'true' : undefined}>
+                  <span className="ac-name">{info.name}</span>
+                  <span className="ac-blurb">{info.blurb}</span>
+                  <span className="ac-status ready">{selected ? 'Selected' : `${maneuversFor(ac, c).length} maneuvers`}</span>
+                </a>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
+      <section className={`pick ${ac && cert ? '' : 'muted'}`}>
+        <h2><span className="pick-n">3</span>Choose a maneuver</h2>
+        {!(ac && cert) && <p className="hint">You will see only the maneuvers on that checkride, flown to its standards.</p>}
+        {ac && cert && groups.map(([group, list]) => (
           <div key={group} className="m-group">
             <h3>{group}</h3>
             <ul className="m-list">
-              {list.map((m) => {
-                const ready = !!ac && isReady(m, ac);
-                const body = (
-                  <>
-                    <span className="m-code">{m.acsCode}</span>
+              {list.map((m) => (
+                <li key={m.id}>
+                  <a className="m-row" href={routeHref(ac.id, cert, m.id)}>
                     <span className="m-title">{m.title}</span>
                     <span className="m-sum">{m.summary}</span>
-                    {!m.build && <span className="m-soon">In production</span>}
-                  </>
-                );
-                return (
-                  <li key={m.id}>
-                    {ready
-                      ? <a className="m-row" href={routeHref(ac!.id, m.id)}>{body}</a>
-                      : <div className="m-row disabled" aria-disabled="true">{body}</div>}
-                  </li>
-                );
-              })}
+                  </a>
+                </li>
+              ))}
             </ul>
           </div>
         ))}
@@ -95,9 +106,10 @@ function Home({ ac }: { ac?: AircraftProfile }) {
       <footer className="home-foot">
         For study and briefing. Not a substitute for instruction — the POH/AFM and your CFI govern.
         <br />
-        3D model: <a href="https://sketchfab.com/3d-models/cessna172-d1b15841c29c43d0862667300bad55a4" target="_blank" rel="noreferrer">“Cessna172”</a> by{' '}
-        <a href="https://sketchfab.com/ioai25312" target="_blank" rel="noreferrer">KOG_THORNS</a>, licensed{' '}
-        <a href="http://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noreferrer">CC BY 4.0</a>; scaled, re-oriented and compressed for this app.
+        3D models (scaled, re-oriented and compressed for this app):{' '}
+        {credits.map((a, i) => (
+          <span key={a.id}>{i > 0 && '; '}<a href={a.model!.creditUrl} target="_blank" rel="noreferrer">{a.model!.credit}</a></span>
+        ))}.
       </footer>
     </main>
   );
@@ -117,8 +129,8 @@ function useWide() {
   return wide;
 }
 
-function Viewer({ ac, def }: { ac: AircraftProfile; def: ManeuverDef }) {
-  const run = useMemo(() => def.build!(ac), [ac, def]);
+function Viewer({ ac, cert, def }: { ac: AircraftProfile; cert: Cert; def: ManeuverDef }) {
+  const run = useMemo(() => buildManeuver(def, ac, cert), [ac, cert, def]);
   const { time, playing, speed } = usePlayback();
   const [view, setView] = useState<ViewMode>('chase');
   const [tab, setTab] = useState<'steps' | 'controls' | 'acs'>('steps');
@@ -150,18 +162,18 @@ function Viewer({ ac, def }: { ac: AircraftProfile; def: ManeuverDef }) {
   return (
     <div className="viewer">
       <header className="vbar">
-        <a href={routeHref(ac.id)} className="back" aria-label="Back to maneuvers">
+        <a href={routeHref(ac.id, cert)} className="back" aria-label="Back to maneuvers">
           <svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7" /></svg>
         </a>
         <div className="vbar-title">
           <h1>{run.title}</h1>
-          <span>{ac.name}</span>
+          <span>{ac.name} · {certInfo(cert).name}</span>
         </div>
       </header>
 
       <div className="stage">
         <div className="view3d">
-          <Scene run={run} mode={view} />
+          <Scene run={run} mode={view} ac={ac} />
           <div className="view-switch" role="group" aria-label="Camera">
             {(['chase', 'side', 'top'] as ViewMode[]).map((v) => (
               <button key={v} className={view === v ? 'on' : ''} onClick={() => setView(v)}>
@@ -170,9 +182,7 @@ function Viewer({ ac, def }: { ac: AircraftProfile; def: ManeuverDef }) {
             ))}
           </div>
           <span className="view-hint">Drag to look around · pinch or scroll to zoom</span>
-          <a className="model-credit" href="https://sketchfab.com/3d-models/cessna172-d1b15841c29c43d0862667300bad55a4" target="_blank" rel="noreferrer">
-            Cessna 172 model by KOG_THORNS, CC BY 4.0 (modified)
-          </a>
+          {ac.model?.credit && <a className="model-credit" href={ac.model.creditUrl} target="_blank" rel="noreferrer">{ac.model.credit}</a>}
         </div>
 
         <div className="pfd-wrap"><G1000PFD f={f} run={run} ac={ac} /></div>

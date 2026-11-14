@@ -47,6 +47,7 @@ export class Sim {
     alt: number; vs: number; dist: number; throttle: number; trim: number;
     elevBias: number; rudderBias: number; aileronBias: number; slip: number;
     onGround: boolean; pitch?: number; warn?: string;
+    gear: number; throttleR?: number; oei?: boolean;
     /** Heading minus track, held without turning (forward slip). */
     yaw: number; noTurn: boolean;
   };
@@ -55,6 +56,8 @@ export class Sim {
   ground: boolean[] = [];
   marks: Record<string, number> = {};
   rollTime = 2.5;
+  /** 1 = gear down. Fixed-gear airplanes ignore changes. */
+  gearTarget = 1;
 
   constructor(ac: AircraftProfile, st: SimStart) {
     this.ac = ac;
@@ -62,7 +65,7 @@ export class Sim {
     this.s = {
       t: 0, e: st.east, n: st.north, hdg: st.hdg, bank: 0, ias: st.ias, rpm: st.rpm, flaps: st.flaps,
       alt: st.altFt, vs: 0, dist: 0, throttle: st.throttle, trim: st.trim,
-      elevBias: 0, rudderBias: 0, aileronBias: 0, slip: 0, onGround: st.onGround, yaw: 0, noTurn: false,
+      elevBias: 0, rudderBias: 0, aileronBias: 0, slip: 0, onGround: st.onGround, yaw: 0, noTurn: false, gear: 1,
     };
     this.tgt = { ias: st.ias, accel: 1, flaps: st.flaps, rpm: st.rpm, throttle: st.throttle, trim: st.trim, vs: 0, vsRate: 250 };
     this.record();
@@ -71,6 +74,10 @@ export class Sim {
   get agl() { return this.s.alt - this.elev; }
   pos(): V2 { return { e: this.s.e, n: this.s.n }; }
   mark(k: string) { this.marks[k] = this.s.t; }
+  /** Set power by value in the airplane's unit; the lever follows. */
+  power(v: number) { this.tgt.rpm = v; this.tgt.throttle = clamp((v - this.ac.rpm.idle) / (this.ac.rpm.max - this.ac.rpm.idle), 0, 1); }
+  gearUp() { if (this.ac.retractable) this.gearTarget = 0; }
+  gearDown() { this.gearTarget = 1; }
 
   private approach(cur: number, tgt: number, rate: number) { return cur + clamp(tgt - cur, -rate * SIM_DT, rate * SIM_DT); }
 
@@ -83,6 +90,9 @@ export class Sim {
       aileronBias: s.aileronBias, slip: s.slip,
       ...(s.pitch !== undefined ? { pitch: s.pitch } : {}),
       ...(s.warn ? { warn: s.warn } : {}),
+      gear: s.gear,
+      ...(s.throttleR !== undefined ? { throttleR: s.throttleR } : {}),
+      ...(s.oei ? { oei: true } : {}),
     });
     this.ground.push(s.onGround);
   }
@@ -93,7 +103,8 @@ export class Sim {
     if (groundAccel !== undefined) s.ias = Math.max(0, s.ias + (groundAccel / KT) * SIM_DT);
     else s.ias = this.approach(s.ias, g.ias, g.accel);
     s.flaps = this.approach(s.flaps, g.flaps, 3);
-    s.rpm = this.approach(s.rpm, g.rpm, 300);
+    s.rpm = this.approach(s.rpm, g.rpm, (300 / 2050) * (this.ac.rpm.max - this.ac.rpm.idle));
+    s.gear = this.approach(s.gear, this.gearTarget, 0.2);
     s.throttle = this.approach(s.throttle, g.throttle, 0.6);
     s.trim = this.approach(s.trim, g.trim, 0.15);
     if (!s.onGround) {

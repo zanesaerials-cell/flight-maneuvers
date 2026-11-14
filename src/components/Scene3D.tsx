@@ -7,7 +7,8 @@ import type { Line2 } from 'three-stdlib';
 import type { Frame, ManeuverRun, RunwaySpec, SceneLabel, SceneMarker } from '../engine/types';
 import { D2R, FT, angDiff, sampleAt } from '../engine/kinematics';
 import { playback } from '../store/playback';
-import { C172Model, WHEEL_CONTACTS } from './C172Model';
+import type { AircraftProfile } from '../data/aircraft';
+import { AircraftModel, wheelContactsFor } from './AircraftModel';
 
 export type ViewMode = 'chase' | 'side' | 'top';
 
@@ -17,7 +18,13 @@ const MAGENTA = '#e23ad8';
 /** Top of the runway paint layer; the tires rest exactly on it. */
 const SURFACE_Y = 0.3;
 /** Height of the airplane's centre of gravity above the tire contact points at zero pitch. */
-const CG_HEIGHT = -WHEEL_CONTACTS[0].y;
+let WHEEL_CONTACTS: THREE.Vector3[] = [new THREE.Vector3(0, -1.06, 0)];
+let CG_HEIGHT = 1.06;
+/** Use the airplane on screen for ground contact. One scene is shown at a time. */
+function useAirplane(ac: AircraftProfile) {
+  WHEEL_CONTACTS = wheelContactsFor(ac);
+  CG_HEIGHT = -WHEEL_CONTACTS[0].y;
+}
 /** Scene position of the CG. Altitude is measured to the wheels, so 0 ft AGL = tires on the runway. */
 const toWorld = (f: Pick<Frame, 'east' | 'north' | 'altFt'>, elevFt: number, out = new THREE.Vector3()) =>
   out.set(f.east, (f.altFt - elevFt) * FT + SURFACE_Y + CG_HEIGHT, -f.north);
@@ -34,7 +41,8 @@ function lowestWheel(rot: THREE.Euler, scale: number) {
   return lo;
 }
 
-export function Scene3D({ run, mode }: { run: ManeuverRun; mode: ViewMode }) {
+export function Scene3D({ run, mode, ac }: { run: ManeuverRun; mode: ViewMode; ac: AircraftProfile }) {
+  useAirplane(ac);
   return (
     <Canvas
       dpr={[1, 2]}
@@ -47,12 +55,12 @@ export function Scene3D({ run, mode }: { run: ManeuverRun; mode: ViewMode }) {
       <hemisphereLight args={["#dfeeff", "#7d8a6a", 0.9]} />
       <ambientLight intensity={0.35} />
       <directionalLight position={[-3000, 5000, 2000]} intensity={1.6} />
-      <World run={run} mode={mode} />
+      <World run={run} mode={mode} ac={ac} />
     </Canvas>
   );
 }
 
-function World({ run, mode }: { run: ManeuverRun; mode: ViewMode }) {
+function World({ run, mode, ac }: { run: ManeuverRun; mode: ViewMode; ac: AircraftProfile }) {
   const elev = run.scene.groundElevFt;
   const frameRef = useRef<Frame>(run.frames[0]);
   const getFrame = () => frameRef.current;
@@ -116,7 +124,7 @@ function World({ run, mode }: { run: ManeuverRun; mode: ViewMode }) {
         <planeGeometry args={[11.5, 8.6]} />
         <meshBasicMaterial map={shadowTex} transparent depthWrite={false} polygonOffset polygonOffsetFactor={-5} polygonOffsetUnits={-20} />
       </mesh>
-      <group ref={plane}><C172Model getFrame={getFrame} /></group>
+      <group ref={plane}><AircraftModel ac={ac} getFrame={getFrame} /></group>
 
       <CameraRig run={run} mode={mode} getFrame={getFrame} />
     </>

@@ -3,3 +3,5 @@ dist
 dist-single
 .vercel
 .DS_Store
+# Sketchfab Standard licence: not redistributable
+public/models/p2002.glb

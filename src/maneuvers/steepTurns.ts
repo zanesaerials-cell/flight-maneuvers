@@ -1,4 +1,5 @@
-import { vaFor, type AircraftProfile } from '../data/aircraft';
+import { pwT, vaFor, type AircraftProfile, type Cert } from '../data/aircraft';
+import { std } from './standards';
 import {
   D2R, G, KT, R2D, angDiff, ease, finalize, tasFromIas, wrap360, type RawSample,
 } from '../engine/kinematics';
@@ -11,9 +12,11 @@ const DT = 0.05;
  * A 360° turn to the left at 45° bank, roll out on the entry heading,
  * then immediately a 360° turn to the right. Calm wind.
  */
-export function buildSteepTurns(ac: AircraftProfile): ManeuverRun {
-  const p = ac.procedures.steepTurns;
-  if (!p) throw new Error(`${ac.shortName} has no steep-turn profile`);
+export function buildSteepTurns(ac: AircraftProfile, cert: Cert = 'private'): ManeuverRun {
+  const p0 = ac.procedures.steepTurns;
+  if (!p0) throw new Error(`${ac.shortName} has no steep-turn profile`);
+  const p = { ...p0, bankDeg: std(cert).steepBank };
+  const gearUp = ac.retractable ? 0 : 1;
 
   const entryHeading = 360;
   const tas = tasFromIas(p.entryIas, p.altitudeFt);
@@ -33,7 +36,7 @@ export function buildSteepTurns(ac: AircraftProfile): ManeuverRun {
   const marks: Record<string, number> = {};
   const push = () => raw.push({
     t: s.t, east: s.east, north: s.north, altFt: p.altitudeFt,
-    heading: wrap360(s.heading), bank: s.bank, ias: p.entryIas, tas, rpm: s.rpm, flaps: 0,
+    heading: wrap360(s.heading), bank: s.bank, ias: p.entryIas, tas, rpm: s.rpm, flaps: 0, gear: gearUp,
   });
   const integrate = () => {
     const rate = (G * Math.tan(s.bank * D2R) / tasMs) * R2D;
@@ -96,8 +99,8 @@ export function buildSteepTurns(ac: AircraftProfile): ManeuverRun {
   const frames = finalize(raw, ac, { trim: 0.15, cruiseRpm: p.entryRpm });
   const duration = frames[frames.length - 1].t;
 
-  const va = vaFor(ac, 2550);
-  const vaLight = vaFor(ac, 1900);
+  const vaList = ac.speeds.va.map((v) => `${v.kias} KIAS at ${v.weightLb.toLocaleString()} lb`).join(', ');
+  void vaFor;
   const leadL = Math.round(angDiff(entryHeading, marks.LRollOutHdg));
   const leadR = Math.round(Math.abs(angDiff(entryHeading, marks.RRollOutHdg)));
   const fmtHdg = (h: number) => String(Math.round(wrap360(h)) || 360).padStart(3, '0');
@@ -110,23 +113,23 @@ export function buildSteepTurns(ac: AircraftProfile): ManeuverRun {
       detail: [
         `Altitude no lower than 1,500 ft AGL. Shown at ${p.altitudeFt.toLocaleString()} ft MSL (${agl.toLocaleString()} ft AGL).`,
         'Make clearing turns before you start (not animated).',
-        `Power ${p.entryRpm.toLocaleString()} RPM, stabilize at ${p.entryIas} KIAS, mixture as set for the altitude.`,
-        `Entry speed must not exceed Va for your weight: ${va} KIAS at 2,550 lb, down to ${vaLight} KIAS at 1,900 lb.`,
+        `Power ${pwT(ac, p.entryRpm)}, stabilize at ${p.entryIas} KIAS, ${ac.text.cruiseSetup}.`,
+        `Entry speed must not exceed Va for your weight: ${vaList}.`,
         'Trim for level flight. Note the entry heading, 360°, and pick a reference on the horizon.',
       ],
     },
     {
-      id: 'roll-left', title: 'Roll into a 45° left bank', start: marks.LRollIn, end: marks.LHold,
+      id: 'roll-left', title: `Roll into a ${p.bankDeg}° left bank`, start: marks.LRollIn, end: marks.LHold,
       detail: [
         'Smooth left aileron with coordinated left rudder — keep the ball centered.',
-        `Passing 30° of bank, add back pressure to hold altitude and add about 100 RPM (to ${p.turnRpm.toLocaleString()}) to hold airspeed.`,
+        `Passing 30° of bank, add back pressure to hold altitude and add a little power (to ${pwT(ac, p.turnRpm)}) to hold airspeed.`,
         'Eyes outside: watch where the cowling sits on the horizon.',
       ],
     },
     {
-      id: 'hold-left', title: 'Hold 45° through 360°', start: marks.LHold, end: marks.LRollOut,
+      id: 'hold-left', title: `Hold ${p.bankDeg}° through 360°`, start: marks.LHold, end: marks.LRollOut,
       detail: [
-        `Load factor is about ${(1 / Math.cos(p.bankDeg * D2R)).toFixed(2)} G, so stall speed rises about 19%.`,
+        `Load factor is about ${(1 / Math.cos(p.bankDeg * D2R)).toFixed(2)} G, so stall speed rises about ${Math.round((Math.sqrt(1 / Math.cos(p.bankDeg * D2R)) - 1) * 100)}%.`,
         'Hold slight opposite (right) aileron to stop the overbanking tendency.',
         'Keep the horizon picture fixed; cross-check altimeter and VSI.',
         `At this speed the turn rate is about ${turnRateDps.toFixed(1)}°/s — a full circle in about ${Math.round(360 / turnRateDps)} s.`,
@@ -138,19 +141,19 @@ export function buildSteepTurns(ac: AircraftProfile): ManeuverRun {
         `Begin the rollout passing about ${fmtHdg(marks.LRollOutHdg)}° (lead of roughly half the bank angle).`,
         'Right aileron with coordinated right rudder.',
         'Release back pressure — add a little forward pressure so the nose does not balloon.',
-        `Reduce power back to ${p.entryRpm.toLocaleString()} RPM.`,
+        `Reduce power back to ${pwT(ac, p.entryRpm)}.`,
       ],
     },
     {
-      id: 'roll-right', title: 'Reverse into a 45° right bank', start: marks.LLevel, end: marks.RHold,
+      id: 'roll-right', title: `Reverse into a ${p.bankDeg}° right bank`, start: marks.LLevel, end: marks.RHold,
       detail: [
         'Check altitude and heading, then roll straight into the right turn.',
         'Right aileron with coordinated right rudder.',
-        `Passing 30°, back pressure and power to ${p.turnRpm.toLocaleString()} RPM again.`,
+        `Passing 30°, back pressure and power to ${pwT(ac, p.turnRpm)} again.`,
       ],
     },
     {
-      id: 'hold-right', title: 'Hold 45° through 360°', start: marks.RHold, end: marks.RRollOut,
+      id: 'hold-right', title: `Hold ${p.bankDeg}° through 360°`, start: marks.RHold, end: marks.RRollOut,
       detail: [
         'Same picture, opposite side: the cowling sits differently against the horizon from the left seat.',
         'Opposite (left) aileron as needed to hold the bank.',
@@ -162,7 +165,7 @@ export function buildSteepTurns(ac: AircraftProfile): ManeuverRun {
       detail: [
         `Begin the rollout passing about ${fmtHdg(marks.RRollOutHdg)}°.`,
         'Left aileron with coordinated left rudder, release back pressure.',
-        `Power back to ${p.entryRpm.toLocaleString()} RPM.`,
+        `Power back to ${pwT(ac, p.entryRpm)}.`,
       ],
     },
     {
@@ -186,7 +189,7 @@ export function buildSteepTurns(ac: AircraftProfile): ManeuverRun {
       windows: [[marks.LRollIn, marks.RLevel]],
     },
     {
-      id: 'bank', label: 'Bank', unit: '°', standard: '45° ±5°',
+      id: 'bank', label: 'Bank', unit: '°', standard: `${p.bankDeg}° ±5°`,
       value: (f) => Math.abs(f.bank), target: p.bankDeg, minus: 5, plus: 5,
       windows: [[marks.LHold, marks.LRollOut], [marks.RHold, marks.RRollOut]],
     },
@@ -202,7 +205,7 @@ export function buildSteepTurns(ac: AircraftProfile): ManeuverRun {
     title: 'Steep Turns',
     acsCode: 'PA.V.A',
     acsTask: 'Area V, Task A',
-    objective: 'Two 360° turns at 45° of bank, left then right, rolling out on the entry heading.',
+    objective: `Two 360° turns at ${p.bankDeg}° of bank, left then right, rolling out on the entry heading.`,
     frames, dt: DT, duration, steps, tolerances,
     scene: {
       groundElevFt: p.groundElevFt,

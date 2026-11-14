@@ -1,4 +1,4 @@
-import type { AircraftProfile } from '../data/aircraft';
+import { pwT, type AircraftProfile } from '../data/aircraft';
 import {
   D2R, FT, G, KT, R2D, angDiff, finalize, resample, tasFromIas, wrap360, type RawSample,
 } from '../engine/kinematics';
@@ -11,7 +11,7 @@ const DT = 0.05;
  * The track is built from straight legs and constant-radius arcs; groundspeed,
  * crab angle and the bank needed at each point are solved from the wind triangle.
  */
-class TrackBuilder {
+export class TrackBuilder {
   pts: { t: number; e: number; n: number; hdg: number; gs: number }[] = [];
   t = 0;
   e: number; n: number; track: number;
@@ -68,9 +68,10 @@ class TrackBuilder {
   }
 
   /** Raw samples on a fixed time grid with bank solved from heading rate (tan φ = V·ψ̇/g). */
-  toRaw(altFt: number, ias: number, rpm: number): RawSample[] {
+  toRaw(alt: number | ((q: { t: number; gs: number }) => number), ias: number, rpm: number, gear = 1): RawSample[] {
     const tas = this.tasMs / KT;
-    const rawVar: RawSample[] = this.pts.map((q) => ({ t: q.t, east: q.e, north: q.n, altFt, heading: q.hdg, bank: 0, ias, tas, rpm, flaps: 0 }));
+    const altOf = typeof alt === 'number' ? () => alt : alt;
+    const rawVar: RawSample[] = this.pts.map((q) => ({ t: q.t, east: q.e, north: q.n, altFt: altOf(q), heading: q.hdg, bank: 0, ias, tas, rpm, flaps: 0, gear }));
     const raw = resample(rawVar, DT);
     const n = raw.length, k = 6;
     const bankRaw = raw.map((_, i) => {
@@ -94,7 +95,7 @@ function common(ac: AircraftProfile) {
   return { p, altFt, tas: tasFromIas(p.ias, altFt) };
 }
 
-function grTolerances(altFt: number, ias: number, window: [number, number][]): Tolerance[] {
+export function grTolerances(altFt: number, ias: number, window: [number, number][]): Tolerance[] {
   return [
     { id: 'alt', label: 'Altitude', unit: 'ft', standard: '±100 ft', value: (f) => f.altFt, target: altFt, minus: 100, plus: 100, windows: window },
     { id: 'ias', label: 'Airspeed', unit: 'kt', standard: '±10 kt', value: (f) => f.ias, target: ias, minus: 10, plus: 10, windows: window },
@@ -102,7 +103,7 @@ function grTolerances(altFt: number, ias: number, window: [number, number][]): T
   ];
 }
 
-const hdg3 = (h: number) => String(Math.round(wrap360(h)) || 360).padStart(3, '0');
+export const hdg3 = (h: number) => String(Math.round(wrap360(h)) || 360).padStart(3, '0');
 
 // ─────────────────────────────────────────────────────────────── Rectangular course
 export function buildRectangularCourse(ac: AircraftProfile): ManeuverRun {
@@ -146,7 +147,7 @@ export function buildRectangularCourse(ac: AircraftProfile): ManeuverRun {
   const steps: Step[] = [
     { id: 'entry', title: 'Enter at 45° to the downwind leg', start: 0, end: m.downwind, detail: [
       `Pick a rectangular field with emergency landing options; ${p.aglFt} ft AGL (600–1,000 ft).`,
-      `${p.ias} KIAS, about ${p.rpm.toLocaleString()} RPM. Wind ${hdg3(p.windFromDeg)}° at ${p.windKt} kt.`,
+      `${p.ias} KIAS, about ${pwT(ac, p.rpm)}. Wind ${hdg3(p.windFromDeg)}° at ${p.windKt} kt.`,
       'Fly about ¼ mile outside the field boundary, as in a traffic pattern. Clear the area.',
     ] },
     { id: 'downwind', title: 'Downwind leg', start: m.downwind, end: m.turnBase, detail: [
@@ -226,7 +227,7 @@ export function buildTurnsAroundPoint(ac: AircraftProfile): ManeuverRun {
   const steps: Step[] = [
     { id: 'entry', title: 'Enter downwind, point off the left wing', start: 0, end: m.enter, detail: [
       `Pick a prominent point (a silo here) with landing options nearby; ${p.aglFt} ft AGL.`,
-      `${p.ias} KIAS, about ${p.rpm.toLocaleString()} RPM. Wind ${hdg3(p.windFromDeg)}° at ${p.windKt} kt.`,
+      `${p.ias} KIAS, about ${pwT(ac, p.rpm)}. Wind ${hdg3(p.windFromDeg)}° at ${p.windKt} kt.`,
       `Enter on the downwind side so the first bank is the steepest. Radius about ${Math.round(R / FT).toLocaleString()} ft.`,
     ] },
     { id: 'downwind', title: 'Abeam the point downwind — steepest bank', start: m.enter, end: m.q1, detail: [
