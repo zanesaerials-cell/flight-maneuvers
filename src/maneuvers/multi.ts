@@ -35,6 +35,26 @@ function oei(sim: Sim, v: number, opts: { failed?: boolean; rudder?: number; ban
   if (opts.bank !== undefined) { s.bank = lerp(s.bank, opts.bank, 0.05); s.noTurn = true; }
 }
 const bothLevers = (sim: Sim) => { sim.s.throttleR = undefined; sim.s.noTurn = false; };
+/**
+ * Both engines back: over `secs` the right lever eases to match the left, and the
+ * bank, ball and rudder held for single-engine flight blend out instead of snapping.
+ */
+function restoreBoth(sim: Sim, secs: number, each?: () => void) {
+  const s = sim.s;
+  sim.for(secs, () => {
+    s.throttleR = lerp(s.throttleR ?? s.throttle, s.throttle, 0.1);
+    s.bank = lerp(s.bank, 0, 0.06); s.slip = lerp(s.slip, 0, 0.08); s.rudderBias = lerp(s.rudderBias, 0, 0.08);
+    s.noTurn = true;
+    each?.();
+  });
+  bothLevers(sim); s.bank = 0; s.slip = 0;
+}
+/** Roll the single-engine bank out to wings level before a turn. */
+function levelWings(sim: Sim, secs: number, each: () => void) {
+  const s = sim.s;
+  sim.for(secs, () => { each(); s.bank = lerp(s.bank, 0, 0.08); s.noTurn = true; });
+  s.bank = 0; s.noTurn = false;
+}
 
 const drill = (ac: AircraftProfile, mu: NonNullable<AircraftProfile['multi']>) => [
   `Control: pitch for ${mu.vyse} KIAS (blue line), rudder toward the operating engine, 2–3° of bank into it.`,
@@ -91,9 +111,9 @@ export function buildVmcDemo(ac: AircraftProfile, _cert: Cert = 'multi'): Maneuv
   s.pitch = undefined;
   sim.for(6, () => { oei(sim, ac.rpm.max, { bank: 2.5 }); sim.tgt.vs = mu.oeiClimbFpm; sim.tgt.vsRate = 200; });
   sim.mark('restore');
-  bothLevers(sim); s.bank = 0; s.slip = 0; s.rudderBias = 0;
   sim.power(ac.pw.cruise); sim.tgt.ias = ac.cruiseKias; sim.tgt.accel = 1.3;
-  sim.for(8, () => { sim.tgt.vs = 0; s.rudderBias = lerp(s.rudderBias, 0, 0.1); });
+  restoreBoth(sim, 3, () => { sim.tgt.vs = 0; });
+  sim.for(5, () => { sim.tgt.vs = 0; s.rudderBias = lerp(s.rudderBias, 0, 0.1); });
   const m = sim.marks;
   const steps: Step[] = [
     { id: 'setup', title: 'Set up and clear the area', start: 0, end: m.config, detail: [
@@ -358,7 +378,7 @@ export function buildOeiManeuvering(ac: AircraftProfile, _cert: Cert = 'multi'):
   sim.for(6, () => level(ac.rpm.max, 2.5));
   sim.mark('turnR');
   const pwHold = 85;
-  s.bank = 0; s.noTurn = false;
+  levelWings(sim, 1.5, () => { oei(sim, pwHold, {}); sim.holdAlt(alt, 300); });
   sim.turnTo(90, 15, () => { oei(sim, pwHold, {}); sim.holdAlt(alt, 300); }, 1);
   sim.mark('turnL');
   sim.turnTo(360, 15, () => { oei(sim, pwHold, {}); sim.holdAlt(alt, 300); }, -1);
@@ -367,9 +387,9 @@ export function buildOeiManeuvering(ac: AircraftProfile, _cert: Cert = 'multi'):
   sim.for(6, () => level(pwHold, 2.5));
   s.oei = false;
   sim.mark('both');
-  bothLevers(sim); s.slip = 0; s.bank = 0;
   sim.power(ac.pw.cruise); sim.tgt.ias = ac.cruiseKias; sim.tgt.accel = 1.2;
-  sim.for(10, () => { sim.holdAlt(alt, 300); s.rudderBias = lerp(s.rudderBias, 0, 0.08); });
+  restoreBoth(sim, 3, () => sim.holdAlt(alt, 300));
+  sim.for(7, () => { sim.holdAlt(alt, 300); s.rudderBias = lerp(s.rudderBias, 0, 0.08); });
   const m = sim.marks;
   const steps: Step[] = [
     { id: 'cruise', title: 'Cruise', start: 0, end: m.fail, detail: [

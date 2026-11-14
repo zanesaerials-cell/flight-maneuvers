@@ -102,6 +102,7 @@ The P-Mentor uses a Tecnam P2002 Sierra model as a look-alike. That model is und
 
 `tools/prepare-da42-model.mjs` turns the Sketchfab download into `public/models/da42.glb`:
 - Cuts the propellers, flaps, ailerons, elevator, rudder and gear out of the model's large meshes as named parts.
+- Repaints the livery plain white (removes the green stripes and logos).
 - Closes the nose baggage door that the original has open.
 - Re-orients the model and computes the rig.
 
@@ -113,7 +114,7 @@ Paste the rig into `MODEL_RIGS.da42`.
 
 ## Displays
 
-The C172S and DA42 use the G1000-style PFD (`G1000PFD.tsx`). The P-Mentor uses a G3X Touch-style PFD (`G3XPFD.tsx`) with a Rotax engine strip; derived engine readings are in `components/engine.ts`.
+The C172S and DA42 use the G1000-style PFD (`G1000PFD.tsx`). The P-Mentor uses a G3X Touch-style PFD (`G3XPFD.tsx`) laid out like the school's P-Mentors (no engine strip).
 
 ## Content review
 

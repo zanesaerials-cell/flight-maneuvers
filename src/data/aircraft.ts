@@ -134,7 +134,8 @@ export interface AircraftProfile {
     text: (v: number) => string;
   };
   pw: PowerSettings;
-  controls: { mixture: boolean; prop: boolean };
+  /** levers: quadrant-style power levers instead of push-pull knobs. */
+  controls: { mixture: boolean; prop: boolean; levers: boolean };
   text: {
     lineup: string;            // items after flaps on the runway
     beforeLanding: string;
@@ -183,7 +184,7 @@ export const C172S: AircraftProfile = {
     text: (v) => (v <= 700 ? 'idle' : v >= 2600 ? 'full power' : `${(Math.round(v / 50) * 50).toLocaleString()} RPM (about ${Math.round(((v / 2700) ** 3) * 20) * 5}%)`),
   },
   pw: { taxi: 1000, reduce: 1500, approach: 1500, shortApproach: 1400, softFlare: 1300, slowDescent: 1600, slowClimb: 2350, descentIdle: 1100, cruise: 2300 },
-  controls: { mixture: true, prop: false },
+  controls: { mixture: true, prop: false, levers: false },
   text: {
     lineup: 'mixture rich',
     beforeLanding: 'Before-landing checklist: fuel selector BOTH, mixture rich, landing light on, seatbelts.',
@@ -331,7 +332,7 @@ export const P_MENTOR: AircraftProfile = {
     },
   },
   pw: { taxi: 12, reduce: 14, approach: 14, shortApproach: 13, softFlare: 12, slowDescent: 15, slowClimb: 28, descentIdle: 10, cruise: 23 },
-  controls: { mixture: false, prop: true },
+  controls: { mixture: false, prop: true, levers: true },
   text: {
     lineup: 'fuel pump ON, propeller full forward',
     beforeLanding: 'GUMPS: fuel pump ON, landing light ON, propeller full forward, seatbelts.',
@@ -397,7 +398,7 @@ export const DA42: AircraftProfile = {
     text: (v) => (v <= 3 ? 'idle' : v >= 99 ? '100% load' : `${Math.round(v / 5) * 5}% load`),
   },
   pw: { taxi: 10, reduce: 25, approach: 30, shortApproach: 28, softFlare: 15, slowDescent: 35, slowClimb: 100, descentIdle: 0, cruise: 65 },
-  controls: { mixture: false, prop: false },
+  controls: { mixture: false, prop: false, levers: true },
   text: {
     lineup: 'engine masters ON, ECU swap AUTO, fuel pumps as required',
     beforeLanding: 'Before-landing checklist: gear DOWN — three green, fuel selectors ON, landing light ON, seatbelts.',

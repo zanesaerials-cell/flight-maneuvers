@@ -245,6 +245,26 @@ const rig = {
   gear: ['gearL', 'gearR', 'gearN'].filter((n) => parts.has(n)),
 };
 
+// Plain white livery: the source paint has green cheat lines, green logos and a
+// cream base. Turn green paint white and lift the cream to a neutral white.
+for (const tex of root.listTextures()) {
+  if (!/DefaultWhite_texture/.test(tex.getURI() || tex.getName() || '')) continue;
+  const { data, info } = await sharp(Buffer.from(tex.getImage())).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+  for (let i = 0; i < data.length; i += 3) {
+    const r = data[i], g = data[i + 1], b = data[i + 2];
+    if (g > r + 30 && g > b + 15) {
+      // Bright green paint becomes white; the dark green fringe of black decals becomes their black.
+      const v = g > 110 ? 250 : Math.max(r, b);
+      data[i] = data[i + 1] = data[i + 2] = v;
+    } else if (r > 200 && g > 200 && b > 180) {
+      const v = Math.max(r, g, b);
+      data[i] = data[i + 1] = data[i + 2] = Math.min(250, v);
+    }
+  }
+  tex.setImage(new Uint8Array(await sharp(data, { raw: info }).png().toBuffer())).setMimeType('image/png');
+  console.error('recoloured', tex.getURI());
+}
+
 // Give every primitive its own compact vertex buffers (the cut-out parts shared the originals).
 for (const mesh of root.listMeshes()) for (const prim of mesh.listPrimitives()) compactPrimitive(prim);
 await doc.transform(

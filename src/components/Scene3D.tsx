@@ -92,7 +92,11 @@ function World({ run, mode, ac }: { run: ManeuverRun; mode: ViewMode; ac: Aircra
       g.rotation.set(f.pitch * D2R, -f.heading * D2R, -f.bank * D2R, 'YXZ');
       g.scale.setScalar(scale);
       const agl = (f.altFt - elev) * FT;
-      g.position.set(f.east, SURFACE_Y + agl - lowestWheel(g.rotation, scale), -f.north);
+      // On the ground the lowest wheel rests on the surface; in the air the airplane
+      // pivots about its CG, so the tires' contact law fades out with height.
+      const onGround = 1 - THREE.MathUtils.smoothstep(agl, 1.5, 12);
+      const lift = THREE.MathUtils.lerp(CG_HEIGHT * scale, -lowestWheel(g.rotation, scale), onGround);
+      g.position.set(f.east, SURFACE_Y + agl + lift, -f.north);
     }
     if (shadow.current) {
       shadow.current.position.set(f.east, SURFACE_Y + 0.02, -f.north);

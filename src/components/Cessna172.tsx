@@ -435,16 +435,23 @@ export function Cessna172({ getFrame, lowWing = false, twin = false }: { getFram
       {[-1, 1].map((s) => (
         <group key={`mg${s}`}>
           {tube(v(s * 0.42, -0.52, MAIN_AXLE[1] - 0.05), v(s * (MAIN_AXLE[0] - 0.1), mainAxleY + 0.05, MAIN_AXLE[1]), 0.05, 0.022, mats.grey)}
-          <mesh position={[s * MAIN_AXLE[0], mainAxleY, MAIN_AXLE[1]]} rotation={[0, 0, Math.PI / 2]} material={mats.tire}>
-            <torusGeometry args={[MAIN_TIRE_R - 0.06, 0.065, 10, 24]} />
+          {/* Tire rolls about the X axis so it faces the direction of travel. */}
+          <mesh position={[s * MAIN_AXLE[0], mainAxleY, MAIN_AXLE[1]]} rotation={[0, Math.PI / 2, 0]} material={mats.tire}>
+            <torusGeometry args={[MAIN_TIRE_R - 0.065, 0.065, 10, 24]} />
+          </mesh>
+          <mesh position={[s * MAIN_AXLE[0], mainAxleY, MAIN_AXLE[1]]} rotation={[0, 0, Math.PI / 2]} material={mats.grey}>
+            <cylinderGeometry args={[MAIN_TIRE_R - 0.07, MAIN_TIRE_R - 0.07, 0.1, 16]} />
           </mesh>
           <mesh position={[s * MAIN_AXLE[0], mainAxleY + 0.09, MAIN_AXLE[1] - 0.05]} scale={[0.72, 1.3, 1.1]} geometry={geo.pant} material={mats.white} />
         </group>
       ))}
       {/* Nose gear: oleo strut, fork, pant, tire */}
       {tube(v(0, -0.35, -1.55), v(0, noseAxleY + 0.2, NOSE_AXLE_Z - 0.02), 0.045, 0.045, mats.chrome)}
-      <mesh position={[0, noseAxleY, NOSE_AXLE_Z]} rotation={[0, 0, Math.PI / 2]} material={mats.tire}>
+      <mesh position={[0, noseAxleY, NOSE_AXLE_Z]} rotation={[0, Math.PI / 2, 0]} material={mats.tire}>
         <torusGeometry args={[NOSE_TIRE_R - 0.055, 0.055, 10, 22]} />
+      </mesh>
+      <mesh position={[0, noseAxleY, NOSE_AXLE_Z]} rotation={[0, 0, Math.PI / 2]} material={mats.grey}>
+        <cylinderGeometry args={[NOSE_TIRE_R - 0.06, NOSE_TIRE_R - 0.06, 0.09, 16]} />
       </mesh>
       <mesh position={[0, noseAxleY + 0.08, NOSE_AXLE_Z - 0.03]} scale={[0.62, 1.1, 0.9]} geometry={geo.pant} material={mats.white} />
 

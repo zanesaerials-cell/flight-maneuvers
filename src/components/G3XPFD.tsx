@@ -1,158 +1,62 @@
 import type { AircraftProfile } from '../data/aircraft';
 import type { Frame, ManeuverRun } from '../engine/types';
 import { angDiff, clamp, wrap360 } from '../engine/kinematics';
-import { aoaFraction, rotax } from './engine';
 
 /**
- * G3X Touch-style primary flight display, drawn in SVG, as in the P-Mentor:
- * engine indication strip on the left, attitude with airspeed and altitude
- * tapes, angle-of-attack indicator, arc HSI along the bottom and a touch bar.
- * A teaching rendering, not a replica.
+ * G3X Touch PFD as set up in the school's P-Mentors: the horizon fills the
+ * whole screen, airspeed tape on the left, altitude tape with the vertical
+ * speed scale on the right, the slip indicator under the aircraft symbol, a
+ * full compass rose at the bottom with the HDG and CRS boxes above it, and
+ * the wind and flap/trim boxes to its left. The top bar and the side panes
+ * (flight plan, nearest airports) are left out. A teaching rendering, not a replica.
  */
-const W = 800, H = 640;
-const EIS = 158;                         // width of the engine strip
-const CX = 478, CY = 250;               // attitude centre
-const PPD = 7;
+const W = 800, H = 630;
+const CX = 400, CY = 203;               // aircraft symbol
+const PPD = 6.5;                        // pixels per degree of pitch
+const ROSE = { cx: 400, cy: 482, r: 117 };
 const C = {
-  sky: '#1f6fd8', skyTop: '#0b3e98', ground: '#83582a', groundLow: '#5b3a19',
-  white: '#ffffff', cyan: '#33e0ff', magenta: '#ff40ff', yellow: '#ffe14d', green: '#25d366',
-  amber: '#ffb000', red: '#ff3030', grey: '#a9b1ba', dim: '#6c7680', panel: '#1b1e22', tape: 'rgba(0,0,0,0.42)',
+  sky: '#2f6bf0', ground: '#7a4a1e',
+  white: '#ffffff', cyan: '#2ee6ff', magenta: '#ff4dff', yellow: '#f2d23c', green: '#22d36a',
+  red: '#ff3030', grey: '#b9c0c8', box: 'rgba(8,10,14,0.88)', tape: 'rgba(14,22,48,0.55)', line: '#8b939c',
 };
 const FONT = "'Barlow Semi Condensed', 'Arial Narrow', sans-serif";
+const pad3 = (d: number) => String(Math.round(wrap360(d)) || 360).padStart(3, '0');
 
 export function G3XPFD({ f, run, ac }: { f: Frame; run: ManeuverRun; ac: AircraftProfile }) {
-  const e = rotax(ac, f);
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="pfd" role="img" fontFamily={FONT}
-      aria-label={`G3X Touch PFD: ${Math.round(f.ias)} knots, ${Math.round(f.altFt)} feet, heading ${Math.round(f.heading)}, ${e.mp.toFixed(1)} inches manifold pressure, ${e.engineRpm} RPM`}>
+      aria-label={`G3X Touch PFD: ${Math.round(f.ias)} knots, ${Math.round(f.altFt)} feet, heading ${Math.round(f.heading)}`}>
       <defs>
         <clipPath id="g3-screen"><rect x="0" y="0" width={W} height={H} rx="6" /></clipPath>
-        <clipPath id="g3-adi"><rect x={EIS} y="34" width={W - EIS} height={H - 34 - 40} /></clipPath>
-        <clipPath id="g3-ladder"><rect x={CX - 120} y={CY - 120} width="240" height="215" /></clipPath>
-        <linearGradient id="g3-sky" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor={C.skyTop} /><stop offset="1" stopColor={C.sky} />
-        </linearGradient>
-        <linearGradient id="g3-gnd" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor={C.ground} /><stop offset="1" stopColor={C.groundLow} />
-        </linearGradient>
+        <clipPath id="g3-ladder"><rect x={CX - 110} y={CY - 112} width="220" height="166" /></clipPath>
       </defs>
       <g clipPath="url(#g3-screen)">
-        <rect x="0" y="0" width={W} height={H} fill="#000" />
-        <g clipPath="url(#g3-adi)">
-          <Attitude f={f} />
-          <Aoa ac={ac} f={f} />
-          <AirspeedTape f={f} ac={ac} target={run.bugs.ias} />
-          <AltitudeTape f={f} target={run.bugs.altitudeFt} />
-          <ArcHsi f={f} bug={run.bugs.heading} />
-          {f.warn && (
-            <g>
-              <rect x={CX - 50} y={44} width="100" height="28" rx="3" fill={C.red} />
-              <text x={CX} y={65} fill="#fff" fontSize="20" fontWeight="700" textAnchor="middle" letterSpacing="2">{f.warn}</text>
-            </g>
-          )}
-        </g>
-        <TopBar f={f} run={run} wind={run.scene.wind} />
-        <Eis e={e} />
-        <TouchBar ac={ac} />
+        <Attitude f={f} />
+        <AirspeedTape f={f} ac={ac} target={run.bugs.ias} />
+        <AltitudeTape f={f} target={run.bugs.altitudeFt} />
+        <Rose f={f} bug={run.bugs.heading} />
+        <WindBox f={f} wind={run.scene.wind} />
+        <FlapTrim f={f} ac={ac} />
+        <StatusLine f={f} />
+        {f.warn && (
+          <g>
+            <rect x={CX - 52} y={14} width="104" height="30" rx="3" fill={C.red} />
+            <text x={CX} y={36} fill="#fff" fontSize="21" fontWeight="700" textAnchor="middle" letterSpacing="2">{f.warn}</text>
+          </g>
+        )}
       </g>
     </svg>
   );
 }
 
-// ── Top data bar ─────────────────────────────────────────────────────────────
-function TopBar({ f, run, wind }: { f: Frame; run: ManeuverRun; wind?: { fromDeg: number; kt: number } }) {
-  const field = (x: number, label: string, value: string, color = C.magenta) => (
-    <g>
-      <text x={x} y="22" fill={C.grey} fontSize="13">{label}</text>
-      <text x={x + label.length * 7 + 6} y="23" fill={color} fontSize="17" fontWeight="600">{value}</text>
-    </g>
-  );
-  return (
-    <g>
-      <rect x="0" y="0" width={W} height="34" fill={C.panel} />
-      <line x1="0" x2={W} y1="34" y2="34" stroke="#3a4048" />
-      {field(EIS + 10, 'GS', `${Math.round(f.gs)}kt`, C.white)}
-      {field(EIS + 100, 'TRK', `${String(Math.round(f.track) || 360).padStart(3, '0')}°`)}
-      <text x={W / 2 + EIS / 2} y="22" fill={C.white} fontSize="14" textAnchor="middle">{run.title}</text>
-      {wind
-        ? field(W - 160, 'WIND', `${String(wind.fromDeg).padStart(3, '0')}°/${wind.kt}`, C.white)
-        : field(W - 160, 'TAS', `${Math.round(f.tas)}kt`, C.white)}
-      <text x={W - 10} y="23" fill={C.magenta} fontSize="14" textAnchor="end">{run.acsCode}</text>
-    </g>
-  );
-}
-
-// ── Engine indication strip (Rotax 912 iSc) ──────────────────────────────────
-function Eis({ e }: { e: ReturnType<typeof rotax> }) {
-  const x0 = 0, w = EIS;
-  return (
-    <g>
-      <rect x={x0} y="34" width={w} height={H - 34} fill={C.panel} />
-      <line x1={w} x2={w} y1="34" y2={H} stroke="#3a4048" />
-      <ArcGauge cx={w / 2} cy={104} label="RPM" value={e.engineRpm} text={e.engineRpm.toLocaleString()} min={0} max={6000}
-        bands={[[1400, 5500, C.green], [5500, 5800, C.amber], [5800, 6000, C.red]]} />
-      <ArcGauge cx={w / 2} cy={232} label="MAN IN" value={e.mp} text={e.mp.toFixed(1)} min={10} max={30}
-        bands={[[10, 27.5, C.green], [27.5, 30, C.amber]]} />
-      <BarGauge y={304} label="FF GPH" value={e.fuelFlow} text={e.fuelFlow.toFixed(1)} min={0} max={8} bands={[[0, 7.5, C.green]]} />
-      <BarGauge y={342} label="OIL PSI" value={e.oilPressPsi} text={String(e.oilPressPsi)} min={0} max={102} bands={[[0, 12, C.red], [12, 29, C.amber], [29, 73, C.green], [73, 102, C.amber]]} />
-      <BarGauge y={380} label="OIL °C" value={e.oilTempC} text={String(e.oilTempC)} min={40} max={140} bands={[[40, 50, C.amber], [50, 110, C.green], [110, 130, C.amber], [130, 140, C.red]]} />
-      <BarGauge y={418} label="CLT °C" value={e.coolantC} text={String(e.coolantC)} min={40} max={130} bands={[[40, 50, C.amber], [50, 110, C.green], [110, 120, C.amber], [120, 130, C.red]]} />
-      <BarGauge y={456} label="VOLTS" value={e.volts} text={e.volts.toFixed(1)} min={10} max={16} bands={[[10, 12, C.amber], [12, 14.8, C.green], [14.8, 16, C.amber]]} />
-      <text x={10} y={500} fill={C.grey} fontSize="13">FUEL GAL</text>
-      {[0, 1].map((i) => (
-        <g key={i}>
-          <rect x={20 + i * 70} y={508} width="46" height="56" fill="#000" stroke="#444" />
-          <rect x={22 + i * 70} y={516} width="42" height="46" fill={C.green} opacity="0.85" />
-          <text x={43 + i * 70} y={584} fill={C.white} fontSize="15" textAnchor="middle">{i ? 'R 11' : 'L 11'}</text>
-        </g>
-      ))}
-    </g>
-  );
-}
-
-function ArcGauge({ cx, cy, label, value, text, min, max, bands }: {
-  cx: number; cy: number; label: string; value: number; text: string; min: number; max: number; bands: [number, number, string][];
-}) {
-  const r = 46, a0 = -120, a1 = 120;
-  const ang = (v: number) => a0 + ((clamp(v, min, max) - min) / (max - min)) * (a1 - a0);
-  const needle = polar(cx, cy, r - 4, ang(value));
-  return (
-    <g>
-      {bands.map(([lo, hi, col], i) => (
-        <path key={i} d={describeArc(cx, cy, r, ang(lo), ang(hi))} fill="none" stroke={col} strokeWidth="7" />
-      ))}
-      <line x1={cx} y1={cy} x2={needle.x} y2={needle.y} stroke={C.white} strokeWidth="3" />
-      <circle cx={cx} cy={cy} r="4" fill={C.white} />
-      <text x={cx} y={cy - r - 10} fill={C.grey} fontSize="13" textAnchor="middle">{label}</text>
-      <rect x={cx - 34} y={cy + 14} width="68" height="24" fill="#000" stroke="#555" />
-      <text x={cx} y={cy + 32} fill={C.white} fontSize="18" fontWeight="600" textAnchor="middle">{text}</text>
-    </g>
-  );
-}
-
-function BarGauge({ y, label, value, text, min, max, bands }: {
-  y: number; label: string; value: number; text: string; min: number; max: number; bands: [number, number, string][];
-}) {
-  const x = 10, w = 100;
-  const px = (v: number) => x + ((clamp(v, min, max) - min) / (max - min)) * w;
-  return (
-    <g>
-      <text x={x} y={y} fill={C.grey} fontSize="12">{label}</text>
-      <text x={EIS - 8} y={y + 1} fill={C.white} fontSize="16" fontWeight="600" textAnchor="end">{text}</text>
-      {bands.map(([lo, hi, col], i) => <rect key={i} x={px(lo)} y={y + 8} width={Math.max(0, px(hi) - px(lo))} height="6" fill={col} />)}
-      <polygon points={`${px(value)},${y + 7} ${px(value) - 6},${y - 3} ${px(value) + 6},${y - 3}`} fill={C.white} />
-    </g>
-  );
-}
-
-// ── Attitude ─────────────────────────────────────────────────────────────────
+// ── Attitude (full screen) ───────────────────────────────────────────────────
 function Attitude({ f }: { f: Frame }) {
   const ladder = [];
   for (let p = -30; p <= 30; p += 2.5) {
     if (p === 0) continue;
     const y = -p * PPD;
     const major = p % 10 === 0, mid = p % 5 === 0;
-    const w = major ? 80 : mid ? 40 : 20;
+    const w = major ? 70 : mid ? 36 : 16;
     ladder.push(
       <g key={p}>
         <line x1={CX - w / 2} x2={CX + w / 2} y1={CY + y} y2={CY + y} stroke={C.white} strokeWidth="2" />
@@ -163,64 +67,60 @@ function Attitude({ f }: { f: Frame }) {
       </g>,
     );
   }
-  const R = 140;
-  const slipX = clamp(f.slip, -1, 1) * 16;
+  const R = 132;
   return (
     <g>
       <g transform={`rotate(${-f.bank} ${CX} ${CY})`}>
         <g transform={`translate(0 ${f.pitch * PPD})`}>
-          <rect x={-900} y={CY - 2000} width={2600} height={2000} fill="url(#g3-sky)" />
-          <rect x={-900} y={CY} width={2600} height={2000} fill="url(#g3-gnd)" />
-          <line x1={-900} x2={1700} y1={CY} y2={CY} stroke={C.white} strokeWidth="2.5" />
+          <rect x={-1200} y={CY - 2400} width={3200} height={2400} fill={C.sky} />
+          <rect x={-1200} y={CY} width={3200} height={2400} fill={C.ground} />
+          <line x1={-1200} x2={2000} y1={CY} y2={CY} stroke={C.white} strokeWidth="2" />
         </g>
         <g clipPath="url(#g3-ladder)"><g transform={`translate(0 ${f.pitch * PPD})`}>{ladder}</g></g>
         <path d={describeArc(CX, CY, R, -60, 60)} fill="none" stroke={C.white} strokeWidth="2" />
         {[10, 20, 30, 45, 60].flatMap((a) => [-a, a]).map((a) => {
-          const p1 = polar(CX, CY, R, a), p2 = polar(CX, CY, R + (a % 30 === 0 ? 18 : 10), a);
+          const p1 = polar(CX, CY, R, a), p2 = polar(CX, CY, R + (a % 30 === 0 ? 16 : 9), a);
           return <line key={a} x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y} stroke={C.white} strokeWidth="2.5" />;
         })}
-        <polygon points={`${CX},${CY - R} ${CX - 10},${CY - R - 15} ${CX + 10},${CY - R - 15}`} fill={C.white} />
+        <polygon points={`${CX},${CY - R} ${CX - 9},${CY - R - 14} ${CX + 9},${CY - R - 14}`} fill={C.white} />
       </g>
-      <polygon points={`${CX},${CY - R + 2} ${CX - 10},${CY - R + 17} ${CX + 10},${CY - R + 17}`} fill={C.white} />
-      <rect x={CX - 12 + slipX} y={CY - R + 20} width="24" height="6" fill={C.white} />
-      {/* Single-cue aircraft symbol */}
-      <g fill={C.yellow} stroke="#000" strokeWidth="1.5">
-        <polygon points={`${CX},${CY} ${CX - 74},${CY + 30} ${CX - 44},${CY + 30} ${CX},${CY + 12} ${CX + 44},${CY + 30} ${CX + 74},${CY + 30}`} />
+      {/* Roll pointer, fixed to the airplane */}
+      <polygon points={`${CX},${CY - R + 2} ${CX - 9},${CY - R + 16} ${CX + 9},${CY - R + 16}`} fill={C.white} />
+      {/* Aircraft symbol: single-cue chevron and the two level bars */}
+      <g fill={C.yellow} stroke="#2a2208" strokeWidth="1.5">
+        <polygon points={`${CX},${CY} ${CX - 76},${CY + 22} ${CX - 52},${CY + 22} ${CX},${CY + 9} ${CX + 52},${CY + 22} ${CX + 76},${CY + 22}`} />
+        <rect x={CX - 154} y={CY - 4} width="38" height="8" rx="1" />
+        <rect x={CX + 116} y={CY - 4} width="38" height="8" rx="1" />
       </g>
+      <SlipIndicator slip={f.slip} />
     </g>
   );
 }
 
-// ── Angle of attack ──────────────────────────────────────────────────────────
-function Aoa({ ac, f }: { ac: AircraftProfile; f: Frame }) {
-  const x = 300, top = 150, h = 120;
-  const a = aoaFraction(ac, f);
-  const y = top + h - clamp(a, 0, 1.1) / 1.1 * h;
-  const zone = (from: number, to: number, col: string) => (
-    <rect x={x} y={top + h - (to / 1.1) * h} width="10" height={((to - from) / 1.1) * h} fill={col} opacity="0.9" />
-  );
+function SlipIndicator({ slip }: { slip: number }) {
+  const x = CX - 66, y = 272, w = 132, h = 24;
+  const ball = clamp(slip, -1.2, 1.2) * 34;
   return (
     <g>
-      <text x={x + 5} y={top - 6} fill={C.white} fontSize="12" textAnchor="middle">AOA</text>
-      {zone(0, 0.6, C.green)}
-      {zone(0.6, 0.85, C.yellow)}
-      {zone(0.85, 1.1, C.red)}
-      <polygon points={`${x + 12},${y} ${x + 24},${y - 7} ${x + 24},${y + 7}`} fill={C.white} stroke="#000" strokeWidth="1" />
+      <rect x={x} y={y} width={w} height={h} rx="3" fill={C.box} />
+      <line x1={CX - 14} x2={CX - 14} y1={y + 2} y2={y + h - 2} stroke={C.white} strokeWidth="2" />
+      <line x1={CX + 14} x2={CX + 14} y1={y + 2} y2={y + h - 2} stroke={C.white} strokeWidth="2" />
+      <circle cx={CX + ball} cy={y + h / 2} r="9" fill={C.white} />
     </g>
   );
 }
 
 // ── Tapes ────────────────────────────────────────────────────────────────────
 function AirspeedTape({ f, ac, target }: { f: Frame; ac: AircraftProfile; target?: number }) {
-  const x = EIS + 14, w = 84, top = 60, bottom = 440, mid = (top + bottom) / 2;
-  const ppk = 5;
+  const x = 134, w = 86, top = 56, bottom = 312, mid = CY;
+  const ppk = 3.6;
   const y = (k: number) => mid - (k - f.ias) * ppk;
   const ticks = [];
-  for (let k = Math.max(20, Math.floor((f.ias - 40) / 5) * 5); k <= f.ias + 40; k += 5) {
+  for (let k = Math.max(20, Math.floor((f.ias - 45) / 5) * 5); k <= f.ias + 45; k += 5) {
     ticks.push(
       <g key={k}>
-        <line x1={x + w - (k % 10 === 0 ? 16 : 9)} x2={x + w} y1={y(k)} y2={y(k)} stroke={C.white} strokeWidth="2" />
-        {k % 10 === 0 && <text x={x + w - 22} y={y(k) + 6} fill={C.white} fontSize="19" textAnchor="end">{k}</text>}
+        <line x1={x + w - (k % 10 === 0 ? 14 : 8)} x2={x + w} y1={y(k)} y2={y(k)} stroke={C.white} strokeWidth="2" />
+        {k % 10 === 0 && <text x={x + w - 20} y={y(k) + 7} fill={C.white} fontSize="21" textAnchor="end">{k}</text>}
       </g>,
     );
   }
@@ -234,123 +134,202 @@ function AirspeedTape({ f, ac, target }: { f: Frame; ac: AircraftProfile; target
       <rect x={x} y={top} width={w} height={bottom - top} fill={C.tape} />
       <g clipPath="url(#g3-spd)">
         {ticks}
-        {band(arcs.whiteLow, arcs.whiteHigh, C.white, 0, 5)}
-        {band(arcs.greenLow, arcs.greenHigh, C.green, 5, 6)}
-        {band(arcs.greenHigh, arcs.yellowHigh, C.yellow, 5, 6)}
-        {band(arcs.yellowHigh, arcs.yellowHigh + 60, C.red, 0, 11)}
-        {target && <polygon points={`${x + w},${y(target)} ${x + w + 12},${y(target) - 8} ${x + w + 12},${y(target) + 8}`} fill={C.cyan} />}
+        {band(arcs.whiteLow, arcs.whiteHigh, C.white, 0, 4)}
+        {band(arcs.greenLow, arcs.greenHigh, C.green, 4, 6)}
+        {band(arcs.greenHigh, arcs.yellowHigh, C.yellow, 4, 6)}
+        {band(arcs.yellowHigh, arcs.yellowHigh + 60, C.red, 0, 10)}
+        {target && <path d={`M${x + w},${y(target) - 10} h8 v20 h-8 v-6 l5,-4 l-5,-4 z`} fill={C.cyan} />}
       </g>
-      <Readout x={x + 4} y={mid} w={72} text={String(Math.round(f.ias))} />
-      <rect x={x} y={bottom} width={w} height="26" fill="#000" />
-      <text x={x + 6} y={bottom + 19} fill={C.grey} fontSize="13">TAS</text>
-      <text x={x + w - 6} y={bottom + 19} fill={C.white} fontSize="16" textAnchor="end">{Math.round(f.tas)}kt</text>
+      <Readout x={x + 2} y={mid} w={70} text={String(Math.round(f.ias))} />
+      <rect x={x} y={top - 26} width={w} height="26" fill={C.box} stroke={C.line} strokeWidth="1" />
+      <text x={x + 5} y={top - 8} fill={C.grey} fontSize="12">TAS</text>
+      <text x={x + w - 6} y={top - 7} fill={C.white} fontSize="18" textAnchor="end">{Math.round(f.tas)}<tspan fontSize="12">KT</tspan></text>
+      <rect x={x} y={bottom} width={w} height="24" fill={C.box} stroke={C.line} strokeWidth="1" />
+      <text x={x + 6} y={bottom + 17} fill={C.grey} fontSize="14">GS</text>
+      <text x={x + w - 6} y={bottom + 18} fill={C.magenta} fontSize="17" textAnchor="end">{Math.round(f.gs)}<tspan fontSize="12">KT</tspan></text>
     </g>
   );
 }
 
 function AltitudeTape({ f, target }: { f: Frame; target: number }) {
-  const x = 668, w = 88, top = 72, bottom = 440, mid = (top + bottom) / 2;
-  const ppf = 0.55;
+  const x = 580, w = 88, top = 72, bottom = 320, mid = CY;
+  const ppf = 0.6;
   const y = (a: number) => mid - (a - f.altFt) * ppf;
   const ticks = [];
-  for (let a = Math.floor((f.altFt - 400) / 20) * 20; a <= f.altFt + 400; a += 20) {
+  for (let a = Math.floor((f.altFt - 260) / 20) * 20; a <= f.altFt + 260; a += 20) {
     const major = a % 100 === 0;
     ticks.push(
       <g key={a}>
-        <line x1={x} x2={x + (major ? 16 : 8)} y1={y(a)} y2={y(a)} stroke={C.white} strokeWidth="2" />
-        {major && <text x={x + 21} y={y(a) + 6} fill={C.white} fontSize="18">{a}</text>}
+        <line x1={x} x2={x + (major ? 14 : 7)} y1={y(a)} y2={y(a)} stroke={C.white} strokeWidth="2" />
+        {major && <text x={x + 19} y={y(a) + 7} fill={C.white} fontSize="20">{a}</text>}
       </g>,
     );
   }
-  // VSI built into the right edge of the tape, as on the G3X.
-  const vx = x + w + 2, vs = (v: number) => mid - clamp(v, -2000, 2000) / 2000 * 150;
+  // Vertical speed scale beside the tape, marked in thousands of feet per minute.
+  const vx = x + w + 3, vh = 108;
+  const vs = (v: number) => mid - clamp(v, -2000, 2000) / 2000 * vh;
+  const vy = vs(f.vsi);
+  const vsText = Math.round(f.vsi / 50) * 50;
   return (
     <g>
       <defs><clipPath id="g3-alt"><rect x={x - 12} y={top} width={w + 12} height={bottom - top} /></clipPath></defs>
       <rect x={x} y={top} width={w} height={bottom - top} fill={C.tape} />
       <g clipPath="url(#g3-alt)">
         {ticks}
-        <path d={`M${x},${y(target) - 12} h10 v8 l-6,4 l6,4 v8 h-10 z`} fill={C.cyan} />
+        <path d={`M${x},${y(target) - 11} h9 v7 l-5,4 l5,4 v7 h-9 z`} fill={C.cyan} />
       </g>
-      <rect x={x} y={top - 30} width={w} height="27" fill="#000" stroke={C.cyan} strokeWidth="1" />
-      <text x={x + w / 2} y={top - 10} fill={C.cyan} fontSize="18" textAnchor="middle">{target}</text>
-      <Readout x={x + 10} y={mid} w={80} text={String(Math.round(f.altFt / 10) * 10)} left />
-      <rect x={vx} y={mid - 150} width="34" height="300" fill={C.tape} />
-      {[-2000, -1000, 0, 1000, 2000].map((v) => (
-        <line key={v} x1={vx} x2={vx + 8} y1={vs(v)} y2={vs(v)} stroke={C.white} strokeWidth="2" />
-      ))}
-      <line x1={vx + 2} x2={vx + 2} y1={mid} y2={vs(f.vsi)} stroke={C.magenta} strokeWidth="5" />
-      <text x={vx + 17} y={vs(f.vsi) + (f.vsi >= 0 ? -6 : 16)} fill={C.white} fontSize="12" textAnchor="middle">{Math.abs(Math.round(f.vsi / 50) * 50) || ''}</text>
-      <rect x={x} y={bottom} width={w} height="26" fill="#000" />
-      <text x={x + w / 2} y={bottom + 19} fill={C.cyan} fontSize="16" textAnchor="middle">29.92in</text>
+      <rect x={x} y={top - 28} width={w} height="26" fill={C.box} stroke={C.line} strokeWidth="1" />
+      <path d={`M${x + 6},${top - 22} h7 v4 l-3,3 l3,3 v4 h-7 z`} fill={C.cyan} />
+      <text x={x + w - 6} y={top - 8} fill={C.cyan} fontSize="19" textAnchor="end">{target}<tspan fontSize="12">FT</tspan></text>
+      <Readout x={x + 12} y={mid} w={78} text={String(Math.round(f.altFt / 10) * 10)} left />
+      <rect x={vx} y={mid - vh - 10} width="30" height={vh * 2 + 20} fill={C.tape} />
+      {[-2000, -1000, -500, 0, 500, 1000, 2000].map((v) => {
+        const big = v % 1000 === 0;
+        return (
+          <g key={v}>
+            <line x1={vx} x2={vx + (big ? 9 : 5)} y1={vs(v)} y2={vs(v)} stroke={C.white} strokeWidth="2" />
+            {big && v !== 0 && <text x={vx + 20} y={vs(v) + 5} fill={C.white} fontSize="13" textAnchor="middle">{Math.abs(v / 1000)}</text>}
+          </g>
+        );
+      })}
+      <path d={`M${vx + 4},${vy} l10,-9 h${vsText ? 34 : 18} v18 h-${vsText ? 34 : 18} z`} fill={C.box} stroke={C.white} strokeWidth="1.5" />
+      {vsText !== 0 && <text x={vx + 31} y={vy + 5} fill={C.white} fontSize="13" textAnchor="middle">{Math.abs(vsText)}</text>}
+      <rect x={x} y={bottom} width={w} height="24" fill={C.box} stroke={C.line} strokeWidth="1" />
+      <text x={x + w / 2} y={bottom + 18} fill={C.cyan} fontSize="17" textAnchor="middle">29.92<tspan fontSize="12">IN</tspan></text>
     </g>
   );
 }
 
-// ── Arc HSI ──────────────────────────────────────────────────────────────────
-function ArcHsi({ f, bug }: { f: Frame; bug: number }) {
-  const cx = CX, cy = 700, r = 196;
-  const marks = [];
+// ── Compass rose with HDG and CRS boxes ──────────────────────────────────────
+function Rose({ f, bug }: { f: Frame; bug: number }) {
+  const { cx, cy, r } = ROSE;
+  const card = [];
   for (let d = 0; d < 360; d += 5) {
-    const a = angDiff(f.heading, d);
-    if (Math.abs(a) > 62) continue;
     const long = d % 10 === 0;
-    const p1 = polar(cx, cy, r, a), p2 = polar(cx, cy, r - (long ? 14 : 8), a);
-    marks.push(<line key={d} x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y} stroke={C.white} strokeWidth="2" />);
+    const p1 = polar(cx, cy, r, d), p2 = polar(cx, cy, r - (long ? 14 : 8), d);
+    card.push(<line key={d} x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y} stroke={C.white} strokeWidth="2" />);
     if (d % 30 === 0) {
-      const p = polar(cx, cy, r - 30, a);
+      const p = polar(cx, cy, r - 30, d);
       const label = ({ 0: 'N', 90: 'E', 180: 'S', 270: 'W' } as Record<number, string>)[d] ?? String(d / 10);
-      marks.push(<text key={`t${d}`} x={p.x} y={p.y + 7} fill={C.white} fontSize="18" textAnchor="middle" transform={`rotate(${a} ${p.x} ${p.y})`}>{label}</text>);
+      card.push(<text key={`t${d}`} x={p.x} y={p.y + 8} fill={C.white} fontSize="22" textAnchor="middle" transform={`rotate(${d} ${p.x} ${p.y})`}>{label}</text>);
     }
   }
-  const bugA = clamp(angDiff(f.heading, bug), -64, 64);
-  const trackA = clamp(angDiff(f.heading, f.track), -64, 64);
-  const hdg = String(Math.round(wrap360(f.heading)) || 360).padStart(3, '0');
+  const trackA = angDiff(f.heading, f.track);
   return (
     <g>
-      <path d={`${describeArc(cx, cy, r + 4, -64, 64)} L${cx},${cy} Z`} fill="rgba(0,0,0,0.55)" />
-      {marks}
-      <g transform={`rotate(${bugA} ${cx} ${cy})`}>
-        <path d={`M${cx - 10},${cy - r - 1} v-9 h6 l4,6 l4,-6 h6 v9 z`} fill={C.cyan} />
+      <circle cx={cx} cy={cy} r={r + 4} fill="rgba(0,0,0,0.42)" />
+      <g transform={`rotate(${-f.heading} ${cx} ${cy})`}>
+        {card}
+        {/* Heading bug */}
+        <g transform={`rotate(${bug} ${cx} ${cy})`}>
+          <path d={`M${cx - 10},${cy - r - 1} v-9 h6 l4,6 l4,-6 h6 v9 z`} fill={C.cyan} />
+        </g>
       </g>
+      {/* Eight fixed index marks outside the card */}
+      {[45, 90, 135, 180, 225, 270, 315].map((a) => {
+        const p1 = polar(cx, cy, r + 6, a), p2 = polar(cx, cy, r + 16, a);
+        return <line key={a} x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y} stroke={C.white} strokeWidth="2" />;
+      })}
+      <circle cx={cx} cy={cy} r={r * 0.55} fill="none" stroke={C.line} strokeWidth="1.5" />
+      {/* Ground track */}
       <g transform={`rotate(${trackA} ${cx} ${cy})`}>
-        <path d={`M${cx},${cy - r + 16} l-6,10 h12 z`} fill={C.magenta} />
+        <path d={`M${cx},${cy - r + 18} l-6,7 l6,7 l6,-7 z`} fill={C.magenta} />
       </g>
-      <rect x={cx - 34} y={cy - r - 38} width="68" height="28" fill="#000" stroke={C.white} strokeWidth="1.5" />
-      <text x={cx} y={cy - r - 17} fill={C.white} fontSize="19" textAnchor="middle">{hdg}°</text>
-      <text x={cx - 150} y={cy - r + 30} fill={C.grey} fontSize="13">HDG</text>
-      <text x={cx - 116} y={cy - r + 31} fill={C.cyan} fontSize="16">{String(bug).padStart(3, '0')}°</text>
+      {/* Airplane */}
+      <path d={`M${cx},${cy - 20} l3,8 v6 l15,7 v5 l-15,-3 v9 l6,5 v4 l-9,-2 l-9,2 v-4 l6,-5 v-9 l-15,3 v-5 l15,-7 v-6 z`} fill={C.white} />
+      {/* Lubber line and heading box */}
+      <polygon points={`${cx},${cy - r + 1} ${cx - 7},${cy - r - 9} ${cx + 7},${cy - r - 9}`} fill={C.white} />
+      <rect x={cx - 32} y={cy - r - 38} width="64" height="28" rx="2" fill={C.box} stroke={C.white} strokeWidth="1.5" />
+      <text x={cx} y={cy - r - 17} fill={C.white} fontSize="21" textAnchor="middle">{pad3(f.heading)}°</text>
+      <BoxField x={cx - 142} y={cy - r - 34} label="HDG" value={`${pad3(bug)}°`} />
+      <BoxField x={cx + 54} y={cy - r - 34} label="CRS" value="– – –" />
     </g>
   );
 }
 
-// ── Touch bar ────────────────────────────────────────────────────────────────
-function TouchBar({ ac }: { ac: AircraftProfile }) {
-  const tabs = ['PFD', 'Map', 'Engine', 'Info', 'Menu'];
-  const x0 = EIS + 6, w = (W - EIS - 12) / tabs.length;
+function BoxField({ x, y, label, value }: { x: number; y: number; label: string; value: string }) {
   return (
     <g>
-      <rect x={EIS} y={H - 40} width={W - EIS} height="40" fill={C.panel} />
-      {tabs.map((t, i) => (
-        <g key={t}>
-          <rect x={x0 + i * w + 3} y={H - 34} width={w - 6} height="28" rx="4" fill={i === 0 ? '#2c3a4a' : '#24282d'} stroke={i === 0 ? C.cyan : '#3a4048'} />
-          <text x={x0 + i * w + w / 2} y={H - 15} fill={i === 0 ? C.white : C.grey} fontSize="14" textAnchor="middle">{t}</text>
-        </g>
-      ))}
-      <text x={EIS / 2} y={H - 14} fill={C.dim} fontSize="12" textAnchor="middle">{ac.shortName} · G3X</text>
+      <rect x={x} y={y} width="88" height="24" rx="2" fill={C.box} stroke={C.line} strokeWidth="1" />
+      <text x={x + 6} y={y + 17} fill={C.grey} fontSize="13">{label}</text>
+      <text x={x + 82} y={y + 18} fill={C.cyan} fontSize="17" textAnchor="end">{value}</text>
+    </g>
+  );
+}
+
+// ── Wind and flap/trim boxes ─────────────────────────────────────────────────
+function WindBox({ f, wind }: { f: Frame; wind?: { fromDeg: number; kt: number } }) {
+  const x = 186, y = 360, w = 76, h = 42;
+  // The arrow shows where the wind is blowing relative to the nose.
+  const rel = wind ? angDiff(f.heading, wind.fromDeg + 180) : 0;
+  return (
+    <g>
+      <rect x={x} y={y} width={w} height={h} rx="2" fill={C.box} stroke={C.line} strokeWidth="1" />
+      {wind ? (
+        <>
+          <g transform={`rotate(${rel} ${x + 18} ${y + h / 2})`}>
+            <path d={`M${x + 18},${y + 7} l-6,9 h4 v18 h4 v-18 h4 z`} fill={C.white} />
+          </g>
+          <text x={x + w - 6} y={y + 18} fill={C.white} fontSize="16" textAnchor="end">{wind.kt}<tspan fontSize="11">KT</tspan></text>
+          <text x={x + w - 6} y={y + 36} fill={C.white} fontSize="15" textAnchor="end">{pad3(wind.fromDeg)}°</text>
+        </>
+      ) : (
+        <text x={x + w / 2} y={y + 27} fill={C.grey} fontSize="15" textAnchor="middle">CALM</text>
+      )}
+    </g>
+  );
+}
+
+function FlapTrim({ f, ac }: { f: Frame; ac: AircraftProfile }) {
+  const x = 186, y = 414, w = 76, h = 120;
+  const top = y + 26, len = h - 36;
+  const max = ac.flapDetents[ac.flapDetents.length - 1] || 30;
+  const fy = (d: number) => top + (clamp(d, 0, max) / max) * len;
+  // Trim: nose down at the top, nose up at the bottom, takeoff band in the middle.
+  const ty = (t: number) => top + len / 2 + clamp(t, -1, 1) * (len / 2);
+  const lx = x + 22, rx = x + 54;
+  return (
+    <g>
+      <rect x={x} y={y} width={w} height={h} rx="2" fill={C.box} stroke={C.line} strokeWidth="1" />
+      <text x={lx} y={y + 17} fill={C.grey} fontSize="12" textAnchor="middle">FLAP</text>
+      <text x={rx} y={y + 17} fill={C.grey} fontSize="12" textAnchor="middle">TRIM</text>
+      <line x1={lx} x2={lx} y1={top} y2={top + len} stroke={C.white} strokeWidth="2" />
+      {ac.flapDetents.map((d) => <line key={d} x1={lx - 6} x2={lx} y1={fy(d)} y2={fy(d)} stroke={C.white} strokeWidth="2" />)}
+      <polygon points={`${lx + 2},${fy(f.c.flaps)} ${lx + 12},${fy(f.c.flaps) - 6} ${lx + 12},${fy(f.c.flaps) + 6}`} fill={C.white} />
+      <line x1={rx} x2={rx} y1={top} y2={top + len} stroke={C.white} strokeWidth="2" />
+      <rect x={rx - 1} y={ty(-0.1)} width="5" height={ty(0.1) - ty(-0.1)} fill={C.green} />
+      <text x={rx + 13} y={top + 6} fill={C.grey} fontSize="10">DN</text>
+      <text x={rx + 13} y={top + len + 2} fill={C.grey} fontSize="10">UP</text>
+      <polygon points={`${rx - 2},${ty(f.c.trim)} ${rx - 12},${ty(f.c.trim) - 6} ${rx - 12},${ty(f.c.trim) + 6}`} fill={C.white} />
+    </g>
+  );
+}
+
+// ── Status line along the bottom ─────────────────────────────────────────────
+function StatusLine({ f }: { f: Frame }) {
+  const sec = Math.round(10 * 3600 + f.t);
+  const hh = String(Math.floor(sec / 3600) % 24).padStart(2, '0');
+  const mm = String(Math.floor(sec / 60) % 60).padStart(2, '0');
+  const ss = String(sec % 60).padStart(2, '0');
+  return (
+    <g fontSize="14">
+      <rect x={0} y={H - 26} width={W} height="26" fill="rgba(0,0,0,0.55)" />
+      <text x={150} y={H - 8} fill={C.grey}>OAT <tspan fill={C.white}>15°C</tspan></text>
+      <text x={CX} y={H - 8} fill={C.grey} textAnchor="middle">LCL <tspan fill={C.white}>{hh}:{mm}:{ss}</tspan></text>
+      <text x={650} y={H - 8} fill={C.grey} textAnchor="end"><tspan fill={C.green}>GPS</tspan></text>
     </g>
   );
 }
 
 function Readout({ x, y, w, text, left }: { x: number; y: number; w: number; text: string; left?: boolean }) {
-  const h = 42;
+  const h = 44;
   const d = left
     ? `M${x - 12},${y} l12,-10 v-${h / 2 - 10} h${w} v${h} h-${w} v-${h / 2 - 10} z`
     : `M${x},${y - h / 2} h${w} v${h / 2 - 10} l12,10 l-12,10 v${h / 2 - 10} h-${w} z`;
   return (
     <g>
       <path d={d} fill="#000" stroke={C.white} strokeWidth="1.5" />
-      <text x={x + w / 2} y={y + 9} fill={C.white} fontSize="27" textAnchor="middle" fontWeight="600">{text}</text>
+      <text x={x + w / 2} y={y + 10} fill={C.white} fontSize="29" textAnchor="middle" fontWeight="600">{text}</text>
     </g>
   );
 }

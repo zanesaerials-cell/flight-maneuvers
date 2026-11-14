@@ -1,4 +1,4 @@
-import { useFrame } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
@@ -68,11 +68,13 @@ function loadModel(url: string) {
   return p;
 }
 
-const GEAR_TRAVEL = 0.55;   // metres a retracting gear leg slides up before it disappears
 
 function Loaded({ scene, rig, getFrame }: { scene: THREE.Group; rig: ModelRig; getFrame: () => Frame }) {
+  const gl = useThree((st) => st.gl);
+  useEffect(() => { gl.localClippingEnabled = true; }, [gl]);
   const discs = useRef<(THREE.Mesh | null)[]>([]);
   const blur = useRef<(THREE.Mesh | null)[]>([]);
+  const spool = useRef({ t: -99, run: [] as number[], lv: [] as number[] });
   const built = useMemo(() => {
     const root = scene.clone(true);
     root.updateMatrixWorld(true);
@@ -118,8 +120,24 @@ function Loaded({ scene, rig, getFrame }: { scene: THREE.Group; rig: ModelRig; g
       spinners.push(spin);
     }
     // Keep each part's own offset: the compressed file stores one on the node.
+    // Each leg retracts by sliding straight up by its own height, and everything above
+    // the point where it meets the airframe is clipped away, so the wheel disappears
+    // into the nacelle or nose instead of vanishing in mid-air.
     const gear = (rig.gear ?? []).map((n) => root.getObjectByName(n)).filter((o): o is THREE.Object3D => !!o)
-      .map((o) => ({ o, y0: o.position.y }));
+      .map((o) => {
+        const box = new THREE.Box3().setFromObject(o);
+        const local = new THREE.Plane(new THREE.Vector3(0, -1, 0), box.max.y - 0.02);
+        const world = local.clone();
+        o.traverse((m) => {
+          const mesh = m as THREE.Mesh;
+          if (!mesh.isMesh) return;
+          const mats = (Array.isArray(mesh.material) ? mesh.material : [mesh.material]).map((mt) => {
+            const c = mt.clone(); c.clippingPlanes = [world]; c.clipShadows = true; return c;
+          });
+          mesh.material = Array.isArray(mesh.material) ? mats : mats[0];
+        });
+        return { o, y0: o.position.y, travel: box.max.y - box.min.y, local, world };
+      });
     // Glass reads better slightly tinted and see-through from outside.
     root.traverse((o) => {
       const m = (o as THREE.Mesh).material as THREE.MeshStandardMaterial | undefined;
@@ -143,27 +161,45 @@ function Loaded({ scene, rig, getFrame }: { scene: THREE.Group; rig: ModelRig; g
       else if (name.startsWith('rudder')) piv.rotation.y = f.c.rudder * 0.38;   // right pedal: rudder to the right
     }
     const lever = (i: number) => (twin && i === 1 ? f.c.throttleR : f.c.throttle);
-    // On a twin the first propeller is the left engine; it stops (feathered) when that engine has failed.
+    // On a twin the first propeller is the left engine; it winds down to a stop (feathered) when that engine has failed.
     const stopped = (i: number) => twin && i === 0 && !!f.oei;
     if (built.pivots.prop) built.pivots.prop.rotation.z += dt * (6 + 30 * Math.max(f.c.throttle, 0.15));
+    // Spin rates ease toward their targets so a propeller spools and winds down instead of
+    // switching speed in one frame. Scrubbing the timeline far jumps straight to the target.
+    const k = 1 - Math.exp(-Math.min(dt, 0.1) / 0.6);
+    const jump = Math.abs(f.t - spool.current.t) > 1;
+    spool.current.t = f.t;
     built.spinners.forEach((sp, i) => {
-      if (stopped(i)) return;
+      const target = stopped(i) ? 0 : 1;
+      const run = spool.current.run[i] = jump || spool.current.run[i] === undefined ? target : spool.current.run[i] + (target - spool.current.run[i]) * k * 0.5;
+      const lv = spool.current.lv[i] = jump || spool.current.lv[i] === undefined ? lever(i) : spool.current.lv[i] + (lever(i) - spool.current.lv[i]) * k;
       // Spun slowly enough that the blades stay visible; the disc adds the blur at power.
-      sp.rotation.z += dt * (5 + 14 * Math.max(lever(i), 0.12)) * (i === 0 ? 1 : -1);
-    });
-    blur.current.forEach((d, i) => {
-      if (!d) return;
-      d.visible = !stopped(i);
-      (d.material as THREE.MeshBasicMaterial).opacity = 0.04 + 0.12 * lever(i);
+      const rate = (5 + 14 * Math.max(lv, 0.12)) * run;
+      if (run < 0.02 && stopped(i)) {
+        // Feathered: settle the blades on the nearest blade position.
+        const step = (Math.PI * 2) / 3;
+        sp.rotation.z += (Math.round(sp.rotation.z / step) * step - sp.rotation.z) * k;
+      } else sp.rotation.z += dt * rate * (i === 0 ? 1 : -1);
+      const d = blur.current[i];
+      if (d) {
+        const m = d.material as THREE.MeshBasicMaterial;
+        m.opacity = (0.04 + 0.12 * lv) * run * run;
+        d.visible = m.opacity > 0.005;
+      }
     });
     discs.current.forEach((d, i) => {
       if (!d) return;
-      d.visible = !stopped(i);
       (d.material as THREE.MeshBasicMaterial).opacity = 0.1 + 0.16 * lever(i);
     });
     // Retractable gear slides up into the nacelles and nose, then disappears.
     const g = THREE.MathUtils.clamp(f.c.gear, 0, 1);
-    built.gear.forEach(({ o, y0 }) => { o.position.y = y0 + (1 - g) * GEAR_TRAVEL; o.visible = g > 0.03; });
+    const ease = g * g * (3 - 2 * g);
+    built.root.updateMatrixWorld();
+    built.gear.forEach(({ o, y0, travel, local, world }) => {
+      o.position.y = y0 + (1 - ease) * travel;
+      o.visible = g > 0.002;
+      world.copy(local).applyMatrix4(built.root.matrixWorld);
+    });
   });
 
   return (

@@ -136,6 +136,19 @@ export function finalize(raw: RawSample[], ac: AircraftProfile, opts: FinalizeOp
     return c;
   });
   frames.forEach((f, i) => { f.c = smoothed[i]; });
+
+  // Ease attitude changes the same way: where a script hands pitch or bank from one
+  // law to another the hand-off becomes a smooth rotation instead of a kink.
+  const hw = 6;
+  const att = frames.map((_, i) => {
+    let p = 0, b = 0, w = 0;
+    for (let j = Math.max(0, i - hw); j <= Math.min(n - 1, i + hw); j++) {
+      const k = hw + 1 - Math.abs(j - i);
+      p += frames[j].pitch * k; b += frames[j].bank * k; w += k;
+    }
+    return [p / w, b / w];
+  });
+  frames.forEach((f, i) => { f.pitch = att[i][0]; f.bank = att[i][1]; });
   return frames;
 }
 
