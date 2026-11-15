@@ -27,12 +27,17 @@ export interface GroundRefSettings {
   ias: number;
   rpm: number;
   radiusM: number;          // ground-track radius chosen so max bank stays under 45°
+  /** Turns around a point: radius and number of full circles, if different from the defaults (radiusM, 2). */
+  pointRadiusM?: number;
+  pointLaps?: number;
   windFromDeg: number;
   windKt: number;
 }
 
 export interface PatternSettings {
   takeoffFlaps: number;
+  /** Flaps for the power-on stall if not the takeoff setting. */
+  powerOnStallFlaps?: number;
   groundAccel: number;      // m/s², sea-level standard day, max weight
   rotateKias: number;
   liftoffKias: number;
@@ -236,11 +241,13 @@ export const C172S: AircraftProfile = {
       ias: 90,
       rpm: 2200,
       radiusM: 330,
+      pointRadiusM: 520,      // about 0.3 statute mile (school: 1/4–1/2 mile)
+      pointLaps: 1,
       windFromDeg: 360,
       windKt: 10,
     },
     pattern: {
-      takeoffFlaps: 0,
+      takeoffFlaps: 10,
       groundAccel: 1.35,
       rotateKias: 55,
       liftoffKias: 58,

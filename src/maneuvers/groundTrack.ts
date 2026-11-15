@@ -205,9 +205,10 @@ export function buildRectangularCourse(ac: AircraftProfile): ManeuverRun {
 // ─────────────────────────────────────────────────────────────── Turns around a point
 export function buildTurnsAroundPoint(ac: AircraftProfile): ManeuverRun {
   const { p, altFt, tas } = common(ac);
-  const R = p.radiusM;
+  const R = p.pointRadiusM ?? p.radiusM;
+  const laps = p.pointLaps ?? 2;
   const downwind = wrap360(p.windFromDeg + 180);
-  // Enter downwind with the point off the left wing; two full left turns.
+  // Enter downwind with the point off the left wing; one or two full left turns.
   const tb = new TrackBuilder({ e: -R, n: 700, track: downwind }, p.windFromDeg, p.windKt, tas);
   tb.straight(700);
   tb.mark('enter');
@@ -215,7 +216,8 @@ export function buildTurnsAroundPoint(ac: AircraftProfile): ManeuverRun {
   tb.arc(R, 90, -1); tb.mark('q2');
   tb.arc(R, 90, -1); tb.mark('q3');
   tb.arc(R, 90, -1); tb.mark('lap1');
-  tb.arc(R, 360, -1); tb.mark('lap2');
+  if (laps > 1) tb.arc(R, 360 * (laps - 1), -1);
+  tb.mark('lap2');
   tb.straight(600);
   const raw = tb.toRaw(altFt, p.ias, p.rpm);
   const frames = finalize(raw, ac, { trim: 0.2, cruiseRpm: p.rpm });
@@ -228,7 +230,7 @@ export function buildTurnsAroundPoint(ac: AircraftProfile): ManeuverRun {
     { id: 'entry', title: 'Enter downwind, point off the left wing', start: 0, end: m.enter, detail: [
       `Pick a prominent point (a silo here) with landing options nearby; ${p.aglFt} ft AGL.`,
       `${p.ias} KIAS, about ${pwT(ac, p.rpm)}. Wind ${hdg3(p.windFromDeg)}° at ${p.windKt} kt.`,
-      `Enter on the downwind side so the first bank is the steepest. Radius about ${Math.round(R / FT).toLocaleString()} ft.`,
+      `Enter on the downwind side so the first bank is the steepest. Radius about ${Math.round(R / FT).toLocaleString()} ft (${(R / 1609.34).toFixed(2)} statute mile).`,
     ] },
     { id: 'downwind', title: 'Abeam the point downwind — steepest bank', start: m.enter, end: m.q1, detail: [
       `Highest groundspeed: steepest bank, about ${Math.round(maxB)}°.`,
@@ -245,10 +247,10 @@ export function buildTurnsAroundPoint(ac: AircraftProfile): ManeuverRun {
     { id: 'crosswind2', title: 'Crosswind — steepen the bank', start: m.q3, end: m.lap1, detail: [
       'Wind now pushes you toward the point: crab outward and steepen the bank as groundspeed builds.',
     ] },
-    { id: 'lap2', title: 'Second turn', start: m.lap1, end: m.lap2, detail: [
+    ...(laps > 1 ? [{ id: 'lap2', title: 'Second turn', start: m.lap1, end: m.lap2, detail: [
       'Same pattern: steep downwind, shallow upwind, constant radius over the ground.',
       'Divide attention: the point, the altimeter, and traffic.',
-    ] },
+    ] }] : []),
     { id: 'exit', title: 'Exit on the entry heading', start: m.lap2, end: duration, detail: ['Roll out on the downwind heading and clear the area.'] },
   ];
   const window: [number, number][] = [[m.enter, m.lap2]];

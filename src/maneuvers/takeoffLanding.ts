@@ -24,11 +24,11 @@ function needs(ac: AircraftProfile) {
   return { p, q };
 }
 
-export function groundSim(ac: AircraftProfile, rf: Rf, startAlong: number, rolling = 0) {
+export function groundSim(ac: AircraftProfile, rf: Rf, startAlong: number, rolling = 0, flaps = 0) {
   const at = rf.at(startAlong);
   const sim = new Sim(ac, {
     east: at.e, north: at.n, hdg: rf.hdg, altFt: APT.elevFt, elevFt: APT.elevFt,
-    ias: rolling, rpm: ac.pw.taxi, flaps: 0, onGround: true, throttle: pwFrac(ac, ac.pw.taxi), trim: 0,
+    ias: rolling, rpm: ac.pw.taxi, flaps, onGround: true, throttle: pwFrac(ac, ac.pw.taxi), trim: 0,
   });
   sim.s.pitch = 0.5;
   sim.raw[0].pitch = 0.5;
@@ -155,7 +155,7 @@ export function buildNormalTakeoff(ac: AircraftProfile, cert: Cert = 'private'):
   const st = std(cert); void st;
   const { p } = needs(ac);
   const rf = runwayFrame(APT, END);
-  const sim = groundSim(ac, rf, rf.threshold + 15);
+  const sim = groundSim(ac, rf, rf.threshold + 15, 0, p.takeoffFlaps);
   sim.s.flaps = p.takeoffFlaps; sim.tgt.flaps = p.takeoffFlaps;
   sim.for(2.5);
   sim.mark('roll');
@@ -276,7 +276,7 @@ export function buildSoftTakeoff(ac: AircraftProfile, cert: Cert = 'private'): M
   const st = std(cert); void st;
   const { p, q } = needs(ac);
   const rf = runwayFrame(APT, END);
-  const sim = groundSim(ac, rf, rf.threshold - 25, 8);
+  const sim = groundSim(ac, rf, rf.threshold - 25, 8, q.softTakeoffFlaps);
   const s = sim.s;
   sim.tgt.flaps = q.softTakeoffFlaps; s.flaps = q.softTakeoffFlaps;
   sim.power(ac.pw.taxi);
@@ -307,7 +307,7 @@ export function buildSoftTakeoff(ac: AircraftProfile, cert: Cert = 'private'): M
   s.pitch = undefined;
   sim.mark('climb');
   sim.tgt.ias = p.climbKias; sim.tgt.rpm = p.climbRpm; sim.tgt.trim = 0.25;
-  climbTo(sim, 250, p.climbFpm);
+  climbTo(sim, 300, p.climbFpm);
   sim.mark('flapsUp');
   sim.tgt.flaps = 0;
   climbTo(sim, 600, p.climbFpm);
@@ -339,7 +339,7 @@ export function buildSoftTakeoff(ac: AircraftProfile, cert: Cert = 'private'): M
       ...gearUpLine(ac),
     ] },
     { id: 'flaps', title: 'Flaps up at a safe altitude', start: m.flapsUp, end: 0, detail: [
-      'Retract the flaps slowly with positive rate and climb speed.',
+      'At 300 ft AGL, retract the flaps slowly with positive rate and climb speed.',
       'Trim and continue the climb.',
     ] },
   ];
@@ -405,7 +405,7 @@ export function buildShortTakeoff(ac: AircraftProfile, cert: Cert = 'private'): 
   const st = std(cert); void st;
   const { p, q } = needs(ac);
   const rf = runwayFrame(APT, END);
-  const sim = groundSim(ac, rf, rf.threshold + 8);
+  const sim = groundSim(ac, rf, rf.threshold + 8, 0, q.shortTakeoffFlaps);
   const s = sim.s;
   s.flaps = q.shortTakeoffFlaps; sim.tgt.flaps = q.shortTakeoffFlaps;
   sim.for(2);
@@ -498,9 +498,9 @@ export function buildShortLanding(ac: AircraftProfile, cert: Cert = 'private'): 
       'A brief round-out — do not let it float.',
       `Touch down main wheels first at about ${q.shortTouchdownKias} KIAS, on or just past the point.`,
     ] },
-    { id: 'brake', title: 'Flaps up, heavy braking', start: m.touchdown + 0.5, end: 0, detail: [
+    { id: 'brake', title: 'Flaps up, simulate heavy braking', start: m.touchdown + 0.5, end: 0, detail: [
       'Retract the flaps to put weight on the wheels.',
-      'Full back elevator and apply heavy braking without skidding the tires.',
+      'Full back elevator. Simulate heavy braking: say it out loud and brake normally, unless the examiner or CFI asks for real maximum braking.',
     ] },
   ];
   return run({

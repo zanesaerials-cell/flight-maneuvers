@@ -187,11 +187,12 @@ function stall(ac: AircraftProfile, kind: 'off' | 'on', cert: Cert = 'private'):
   sim.mark('slow');
   sim.power(ac.pw.reduce); sim.tgt.accel = 1.3;
   if (kind === 'off') sim.gearDown();
-  const entryKias = kind === 'off' ? p.finalKias : p.rotateKias + (p.takeoffFlaps > 0 ? 7 : 0);
+  const onFlaps = p.powerOnStallFlaps ?? p.takeoffFlaps;
+  const entryKias = kind === 'off' ? p.finalKias : p.rotateKias + (onFlaps > 0 ? 7 : 0);
   sim.tgt.ias = entryKias;
   sim.until(() => s.ias <= entryKias + 0.3, () => {
     hold();
-    stageFlaps(sim, kind === 'off' ? full : p.takeoffFlaps);
+    stageFlaps(sim, kind === 'off' ? full : onFlaps);
     sim.tgt.trim = lerp(0.15, 0.55, smoothstep(cruise, entryKias, s.ias));
   });
   sim.mark('config');
@@ -268,7 +269,7 @@ function stall(ac: AircraftProfile, kind: 'off' | 'on', cert: Cert = 'private'):
       `Flaps one notch at a time to ${fl(ac, full)}. Trim.`,
     ] : [
       `Power to ${pwT(ac, ac.pw.reduce)}, hold altitude while slowing.`,
-      `Takeoff configuration: flaps ${fl(ac, p.takeoffFlaps)}${ac.retractable ? ', gear UP' : ''}. Slow to about ${entryKias} KIAS. Trim.`,
+      `Takeoff configuration: flaps ${fl(ac, onFlaps)}${ac.retractable ? ', gear UP' : ''}. Slow to about ${entryKias} KIAS. Trim.`,
     ] },
     off
       ? { id: 'descent', title: `Stabilized descent at ${p.finalKias} KIAS`, start: m.config, end: m.pitchUp, detail: [
