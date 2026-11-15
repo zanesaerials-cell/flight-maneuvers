@@ -138,7 +138,10 @@ Sources: Tecnam P-Mentor AFM (sections 2, 4, 5), DA42 AFM Doc. 7.01.05-E Rev. 8 
 ## 3D models
 
 - **DA42** (helijah, CC BY 4.0) is rigged by `tools/prepare-da42-model.mjs`:
-  - Moving parts: both 3-blade propellers, inboard and outboard flaps, ailerons, elevator, rudder and retractable gear. The gear slides straight up into the nacelles and nose; it does not swing.
+  - Moving parts: both 3-blade propellers, inboard and outboard flaps, ailerons, elevator, rudder and retractable gear.
+  - Gear sequence (about 6.5 s; reverses on extension): the nose gear folds forward into the nose well and its two doors close; then each main gear folds inboard toward the belly. The door on the outside of each leg ends up flush with the wing skin, and an inner door closes the rest of the well.
+  - The nose gear folds forward because that is where this model's nose well is (and, as I understand it, how the real DA42 retracts). It can be reversed in `src/data/modelRigs.ts` if needed.
+  - The inner main-gear doors and the nose doors are drawn by the app; the model's own nose doors are hidden because they did not close cleanly.
   - The left propeller winds down and stops after the left engine fails.
   - Painted plain white: the source model's green stripes and logos are removed by the prep script.
   - The model came with the left nose baggage door open; it has been closed.

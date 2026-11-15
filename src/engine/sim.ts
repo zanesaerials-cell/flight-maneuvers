@@ -104,7 +104,7 @@ export class Sim {
     else s.ias = this.approach(s.ias, g.ias, g.accel);
     s.flaps = this.approach(s.flaps, g.flaps, 3);
     s.rpm = this.approach(s.rpm, g.rpm, (300 / 2050) * (this.ac.rpm.max - this.ac.rpm.idle));
-    s.gear = this.approach(s.gear, this.gearTarget, 0.2);
+    s.gear = this.approach(s.gear, this.gearTarget, 0.15);   // about 6.5 s up or down
     s.throttle = this.approach(s.throttle, g.throttle, 0.6);
     s.trim = this.approach(s.trim, g.trim, 0.15);
     if (!s.onGround) {

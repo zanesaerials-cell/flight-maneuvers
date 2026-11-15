@@ -16,13 +16,62 @@ export interface ModelRig {
   propHub?: V3;
   /** Propellers that are separate parts, spun about the hub's fore-aft axis: left to right. */
   props?: { name: string; at: V3; radius: number }[];
-  /** Landing gear parts that slide up and hide when the gear retracts. */
+  /** Landing gear parts that slide up and hide when the gear retracts (used when there is no `retraction`). */
   gear?: string[];
+  /**
+   * Folding gear and its doors. `u` runs from 0 (gear down) to 1 (gear up and doors shut);
+   * each part moves during its own slice of `u`, so the sequence plays forward on
+   * retraction and in reverse on extension.
+   */
+  retraction?: GearMove[];
   /** Propeller discs drawn over models whose propellers are not separate parts: left to right. */
   propDiscs?: { at: V3; radius: number }[];
+  /** Model parts not drawn (replaced by doors built in `retraction`). */
+  hide?: string[];
   /** Stand-in shape while the model loads or when its file is not present. */
   fallback: 'high-wing' | 'low-wing';
 }
+
+export interface GearMove {
+  /** Model part to turn, or a door made here when `panel` is given. */
+  part?: string;
+  /** Flat door built in code: centre and size (x, y, z) where it sits with its pivot at 0°. */
+  panel?: { at: V3; size: V3 };
+  pivot: V3;
+  axis: 'x' | 'z';
+  /** Rotation in degrees at u = 0 and u = 1. */
+  from: number;
+  to: number;
+  /** Slice of u over which this part moves. */
+  span: [number, number];
+  /** Hide the part on one side of x = 0 (doors that overlap when shut). */
+  keep?: 'left' | 'right';
+  /** Hide anything of the part above this height (the top of its well), so a folded wheel cannot show through the skin. */
+  below?: number;
+}
+
+const deg90 = 90;
+/**
+ * DA42 gear sequence, in the order it retracts.
+ * Nose gear folds forward into the nose well (the well runs forward of the pivot),
+ * then its two doors swing shut and meet on the centreline. Each main gear folds inboard toward the belly; the
+ * door on the outside of the leg ends up flush with the wing skin, and an inner door
+ * closes the rest of the well.
+ */
+const DA42_RETRACTION: GearMove[] = [
+  { part: 'gearN', pivot: [0, -0.29, -0.99], axis: 'x', from: 0, to: deg90, span: [0, 0.42], below: 0 },
+  // Nose doors: each covers half the well, hinged on its outer edge; open they hang straight down.
+  { panel: { at: [-0.064, -0.405, -1.455], size: [0.128, 0.012, 1.08] }, pivot: [-0.128, -0.405, -1.455], axis: 'z', from: -deg90, to: 0, span: [0.4, 0.55] },
+  { panel: { at: [0.064, -0.405, -1.455], size: [0.128, 0.012, 1.08] }, pivot: [0.128, -0.405, -1.455], axis: 'z', from: deg90, to: 0, span: [0.4, 0.55] },
+  { part: 'gearL', pivot: [-1.54, -0.31, 0.2], axis: 'z', from: 0, to: deg90, span: [0.45, 0.88], below: -0.2 },
+  { part: 'gearR', pivot: [1.54, -0.31, 0.2], axis: 'z', from: 0, to: -deg90, span: [0.45, 0.88], below: -0.2 },
+  // Strip along the front edge of each strut door: the model's door sits a little aft of the well opening.
+  { panel: { at: [-1.592, -0.67, 0.088], size: [0.012, 0.6, 0.11] }, pivot: [-1.54, -0.31, 0.2], axis: 'z', from: 0, to: deg90, span: [0.45, 0.88] },
+  { panel: { at: [1.592, -0.67, 0.088], size: [0.012, 0.6, 0.11] }, pivot: [1.54, -0.31, 0.2], axis: 'z', from: 0, to: -deg90, span: [0.45, 0.88] },
+  // Inner doors over the rounded inboard end of each well, hinged on their inboard edge.
+  { panel: { at: [-0.79, -0.386, 0.2], size: [0.38, 0.012, 0.4] }, pivot: [-0.6, -0.386, 0.2], axis: 'z', from: deg90, to: 0, span: [0.86, 1] },
+  { panel: { at: [0.79, -0.386, 0.2], size: [0.38, 0.012, 0.4] }, pivot: [0.6, -0.386, 0.2], axis: 'z', from: -deg90, to: 0, span: [0.86, 1] },
+];
 
 export const MODEL_RIGS: Record<string, ModelRig> = {
   c172s: { wheelContacts: C172S_WHEEL_CONTACTS, hinges: C172S_HINGES, propHub: C172S_PROP_HUB, fallback: 'high-wing' },
@@ -49,6 +98,8 @@ export const MODEL_RIGS: Record<string, ModelRig> = {
       { name: 'propR', at: [1.7426, 0.042, -1.2769], radius: 0.821 },
     ],
     gear: ['gearL', 'gearR', 'gearN'],
+    retraction: DA42_RETRACTION,
+    hide: ['doorNL', 'doorNR'],   // the model's own nose doors are tapered and do not close cleanly
     fallback: 'low-wing',
   },
 };

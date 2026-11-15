@@ -7,7 +7,8 @@
 //   aileronL / aileronR       outer trailing edge, aft of the hinge seam
 //   elevator                  full-span elevator on the T-tail
 //   rudder                    rudder skin and its hinge strip
-//   gearL / gearR / gearN     wheels and legs, which slide up when retracted
+//   gearL / gearR / gearN     wheels, legs and strut doors, which fold into their wells
+//   doorNL / doorNR           nose gear doors
 // It then re-orients to the app frame (nose −Z, right wing +X, up +Y, origin
 // at the CG), computes hinge lines, prop hubs and tire contacts, shrinks the
 // textures and compresses the geometry.
@@ -97,6 +98,9 @@ rules.push({ part: 'elevator', node: 'Object_48', box: [-1.5, 1.1, 5.2, 1.5, 1.2
 rules.push({ part: 'rudder', node: 'Object_50', box: [-0.07, -0.4, 4.7, 0.07, 1.15, 5.65] });
 rules.push({ part: 'rudder', node: 'Object_48', box: [-0.07, -0.4, 4.7, 0.07, 1.15, 5.65] });
 rules.push({ part: 'gearN', node: '*', box: [-0.11, -1.3, -1.45, 0.11, -0.25, -0.9] });
+// Nose gear doors, modelled open: two panels hanging below the nose well.
+rules.push({ part: 'doorNL', node: 'Object_50', box: [-0.16, -0.6, -2.05, -0.11, -0.3, -0.88] });
+rules.push({ part: 'doorNR', node: 'Object_50', box: [0.11, -0.6, -2.05, 0.16, -0.3, -0.88] });
 void BIG;
 
 // The model has the left nose baggage door modelled open. Remove it and close the gap
@@ -243,6 +247,7 @@ const rig = {
   hinges,
   props,
   gear: ['gearL', 'gearR', 'gearN'].filter((n) => parts.has(n)),
+  gearDoors: ['doorNL', 'doorNR'].filter((n) => parts.has(n)),
 };
 
 // Plain white livery: the source paint has green cheat lines, green logos and a

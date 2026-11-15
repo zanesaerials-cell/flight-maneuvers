@@ -119,11 +119,44 @@ function Loaded({ scene, rig, getFrame }: { scene: THREE.Group; rig: ModelRig; g
       if (part) spin.attach(part);
       spinners.push(spin);
     }
-    // Keep each part's own offset: the compressed file stores one on the node.
-    // Each leg retracts by sliding straight up by its own height, and everything above
-    // the point where it meets the airframe is clipped away, so the wheel disappears
-    // into the nacelle or nose instead of vanishing in mid-air.
-    const gear = (rig.gear ?? []).map((n) => root.getObjectByName(n)).filter((o): o is THREE.Object3D => !!o)
+    // Folding gear: each part (or door built here) hangs from a pivot group that turns
+    // about its hinge axis during its own slice of the retraction sequence.
+    // Clipping planes are kept in model space and copied to world space every frame.
+    const clipTo = (o: THREE.Object3D, local: THREE.Plane[]) => {
+      const world = local.map((p) => p.clone());
+      o.traverse((m) => {
+        const mesh = m as THREE.Mesh;
+        if (!mesh.isMesh) return;
+        const mats = (Array.isArray(mesh.material) ? mesh.material : [mesh.material]).map((mt) => { const c = mt.clone(); c.clippingPlanes = world; return c; });
+        mesh.material = Array.isArray(mesh.material) ? mats : mats[0];
+      });
+      return { local, world };
+    };
+    for (const n of rig.hide ?? []) { const o = root.getObjectByName(n); if (o) o.visible = false; }
+    const doorMat = new THREE.MeshStandardMaterial({ color: '#f3f3f1', roughness: 0.6, metalness: 0 });
+    const movers = (rig.retraction ?? []).flatMap((mv) => {
+      let part: THREE.Object3D | undefined;
+      if (mv.panel) {
+        // Built where it sits with its pivot at 0°; the pivot then turns it each frame.
+        const { at, size } = mv.panel;
+        part = new THREE.Mesh(new THREE.BoxGeometry(...size), doorMat);
+        part.position.set(...at);
+        root.add(part);
+      } else part = root.getObjectByName(mv.part ?? '') ?? undefined;
+      if (!part) return [];
+      const pivot = new THREE.Group();
+      pivot.position.set(...mv.pivot);
+      root.add(pivot);
+      root.updateMatrixWorld(true);
+      pivot.attach(part);             // keeps the part exactly where it was
+      const planes: THREE.Plane[] = [];
+      // Doors that overlap when shut are each trimmed at the centreline.
+      if (mv.keep) planes.push(new THREE.Plane(new THREE.Vector3(mv.keep === 'left' ? -1 : 1, 0, 0), 0));
+      if (mv.below !== undefined) planes.push(new THREE.Plane(new THREE.Vector3(0, -1, 0), mv.below));
+      return [{ mv, pivot, clip: planes.length ? clipTo(part, planes) : undefined }];
+    });
+    // Without a folding sequence, gear legs simply slide up and are clipped where they meet the airframe.
+    const gear = rig.retraction ? [] : (rig.gear ?? []).map((n) => root.getObjectByName(n)).filter((o): o is THREE.Object3D => !!o)
       .map((o) => {
         const box = new THREE.Box3().setFromObject(o);
         const local = new THREE.Plane(new THREE.Vector3(0, -1, 0), box.max.y - 0.02);
@@ -143,7 +176,7 @@ function Loaded({ scene, rig, getFrame }: { scene: THREE.Group; rig: ModelRig; g
       const m = (o as THREE.Mesh).material as THREE.MeshStandardMaterial | undefined;
       if (m && /glass/i.test(m.name)) { m.transparent = true; m.opacity = Math.min(m.opacity, 0.55); m.depthWrite = false; }
     });
-    return { root, pivots, spinners, gear };
+    return { root, pivots, spinners, gear, movers };
   }, [scene, rig]);
 
   useFrame((_, dt) => {
@@ -191,10 +224,17 @@ function Loaded({ scene, rig, getFrame }: { scene: THREE.Group; rig: ModelRig; g
       if (!d) return;
       (d.material as THREE.MeshBasicMaterial).opacity = 0.1 + 0.16 * lever(i);
     });
-    // Retractable gear slides up into the nacelles and nose, then disappears.
+    // Gear: u = 0 down, 1 up with doors shut. Each part eases through its own slice.
     const g = THREE.MathUtils.clamp(f.c.gear, 0, 1);
-    const ease = g * g * (3 - 2 * g);
+    const u = 1 - g;
     built.root.updateMatrixWorld();
+    built.movers.forEach(({ mv, pivot, clip }) => {
+      const k = THREE.MathUtils.smoothstep(u, mv.span[0], mv.span[1]);
+      const a = THREE.MathUtils.degToRad(mv.from + (mv.to - mv.from) * k);
+      if (mv.axis === 'x') pivot.rotation.x = a; else pivot.rotation.z = a;
+      if (clip) clip.local.forEach((p, i) => clip.world[i].copy(p).applyMatrix4(built.root.matrixWorld));
+    });
+    const ease = g * g * (3 - 2 * g);
     built.gear.forEach(({ o, y0, travel, local, world }) => {
       o.position.y = y0 + (1 - ease) * travel;
       o.visible = g > 0.002;
