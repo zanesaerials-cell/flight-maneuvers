@@ -88,7 +88,7 @@ Sources: Tecnam P-Mentor AFM (sections 2, 4, 5), DA42 AFM Doc. 7.01.05-E Rev. 8 
 - Flap angles 15°/35° are assumed and only affect the animation.
 - The P-Mentor shows a G3X Touch PFD laid out like the school's airplanes: full-width horizon, airspeed tape (TAS above, GS below), altitude tape with selected altitude, VSI scale and baro, slip indicator under the aircraft symbol, compass rose with HDG and CRS boxes, wind box and a flap/trim indicator. The top bar and the side panes are left out.
   - *(confirmed)* The OAT, local time and GPS fields on the bottom line are placeholders.
-- The P-Mentor throttle and propeller, and the DA42 power levers, are drawn as quadrant levers (forward = more).
+- The P-Mentor throttle and propeller, and the DA42 power levers, are drawn as levers seen from behind the seat (forward = up = more).
 
 ## Guide items where the app differs (decided)
 

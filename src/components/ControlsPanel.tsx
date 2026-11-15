@@ -193,23 +193,38 @@ function Trim({ v }: { v: number }) {
   );
 }
 
-/** Side view of a quadrant lever. Forward (more) is to the left, toward the panel. */
-function QuadrantLever({ v, handle, x, y, len, tag }: { v: number; handle: string; x: number; y: number; len: number; tag?: string }) {
-  const a0 = 38, a1 = -38;                       // degrees from vertical: idle leans aft, full leans forward
-  const deg = a0 + (a1 - a0) * clamp(v, 0, 1);
-  const r = (d: number) => (d * Math.PI) / 180;
-  const pt = (d: number, l: number) => [x + Math.sin(r(d)) * l, y - Math.cos(r(d)) * l];
-  const [g0x, g0y] = pt(a0, len * 0.72), [g1x, g1y] = pt(a1, len * 0.72);
+/**
+ * Power quadrant seen from behind and slightly above the seat: each lever slides
+ * forward (up the picture) in its slot, and gets a little smaller as it moves away.
+ */
+const Q_TOP = 22, Q_BOT = 100;                  // slot ends: forward (max) and aft (idle)
+function SlotLever({ v, x, handle, tag }: { v: number; x: number; handle: string; tag?: string }) {
+  const u = clamp(v, 0, 1);
+  const y = Q_BOT - 8 - u * (Q_BOT - Q_TOP - 16);
+  const k = 1 - 0.28 * u;                       // perspective: farther is smaller
+  const halfTop = 3, halfBot = 5;               // slot narrows toward the panel
   return (
     <g>
-      {/* Gate slot the lever rides in. */}
-      <path d={`M${g0x},${g0y} A${len * 0.72},${len * 0.72} 0 0 0 ${g1x},${g1y}`} fill="none" stroke="#15171a" strokeWidth="7" strokeLinecap="round" />
-      <g transform={`rotate(${deg} ${x} ${y})`}>
-        <rect x={x - 2.5} y={y - len} width="5" height={len} rx="2" fill="#8f98a2" />
-        <rect x={x - 12} y={y - len - 9} width="24" height="15" rx="6" fill={handle} stroke="#e9ecef" strokeWidth="1.5" />
-      </g>
-      <circle cx={x} cy={y} r="4.5" fill="#4a525b" />
-      {tag && <text x={x} y={y + 18} textAnchor="middle" className="art-note">{tag}</text>}
+      <path d={`M${x - halfTop},${Q_TOP} L${x + halfTop},${Q_TOP} L${x + halfBot},${Q_BOT} L${x - halfBot},${Q_BOT} Z`} fill="#0f1113" />
+      {/* Shaft rising out of the slot toward the viewer */}
+      <rect x={x - 2.5 * k} y={y} width={5 * k} height={10 * k} fill="#8f98a2" />
+      {/* T-handle */}
+      <rect x={x - 18 * k} y={y - 11 * k} width={36 * k} height={16 * k} rx={6 * k} fill={handle} stroke="#e9ecef" strokeWidth="1.5" />
+      <rect x={x - 13 * k} y={y - 8 * k} width={26 * k} height={3.5 * k} rx={1.5 * k} fill="#ffffff" opacity="0.22" />
+      {tag && <text x={x} y={Q_BOT + 15} textAnchor="middle" className="art-note">{tag}</text>}
+    </g>
+  );
+}
+
+function Console({ x0, x1, hi, lo, children }: { x0: number; x1: number; hi: string; lo: string; children: React.ReactNode }) {
+  // Console top as a trapezoid: narrower at the far (forward) end.
+  const inset = 8;
+  return (
+    <g>
+      <path d={`M${x0 + inset},${Q_TOP - 10} L${x1 - inset},${Q_TOP - 10} L${x1},${Q_BOT + 4} L${x0},${Q_BOT + 4} Z`} fill="#2a2f35" stroke="#3a4148" />
+      <text x={x1 + 4} y={Q_TOP + 4} className="art-note">{hi}</text>
+      <text x={x1 + 4} y={Q_BOT} className="art-note">{lo}</text>
+      {children}
     </g>
   );
 }
@@ -217,23 +232,21 @@ function QuadrantLever({ v, handle, x, y, len, tag }: { v: number; handle: strin
 function Quadrant({ v, handle, lo, hi, note }: { v: number; handle: string; lo: string; hi: string; note?: string }) {
   return (
     <svg viewBox="0 0 160 120">
-      <rect x="20" y="92" width="120" height="12" rx="3" fill="#2a2f35" />
-      <QuadrantLever v={v} handle={handle} x={80} y={96} len={70} />
-      <text x="22" y="20" className="art-note">{hi}</text>
-      <text x="138" y="20" textAnchor="end" className="art-note">{lo}</text>
-      {note && <text x="80" y="118" textAnchor="middle" className="art-note">{note}</text>}
+      <Console x0={46} x1={106} hi={hi} lo={lo}>
+        <SlotLever v={v} x={76} handle={handle} />
+      </Console>
+      {note && <text x={22} y={64} textAnchor="middle" className="art-note">{note}</text>}
     </svg>
   );
 }
 
 function TwinLevers({ l, r }: { l: number; r: number }) {
-  // Two quadrants side by side, each seen from the side: forward (more power) is to the left.
   return (
     <svg viewBox="0 0 160 120">
-      <rect x="6" y="86" width="148" height="10" rx="3" fill="#2a2f35" />
-      <QuadrantLever v={l} handle="#1b1d20" x={42} y={90} len={58} tag="L" />
-      <QuadrantLever v={r} handle="#1b1d20" x={118} y={90} len={58} tag="R" />
-      <text x="80" y="16" textAnchor="middle" className="art-note">◀ MAX</text>
+      <Console x0={30} x1={118} hi="MAX" lo="IDLE">
+        <SlotLever v={l} x={57} handle="#1b1d20" tag="L" />
+        <SlotLever v={r} x={91} handle="#1b1d20" tag="R" />
+      </Console>
     </svg>
   );
 }
