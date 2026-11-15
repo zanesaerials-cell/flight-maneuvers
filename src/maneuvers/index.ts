@@ -18,6 +18,7 @@ import { buildCrossControlStall, buildElevatorTrimStall, buildSecondaryStall } f
 import {
   buildEngineFailureAfterLiftoff, buildOeiLanding, buildOeiManeuvering, buildRejectedTakeoff, buildVmcDemo,
 } from './multi';
+import { buildClearingTurns } from './clearing';
 import { certInfo } from './standards';
 
 type Builder = (ac: AircraftProfile, cert: Cert) => ManeuverRun;
@@ -39,6 +40,7 @@ export interface ManeuverDef {
 const ALL: Cert[] = ['private', 'commercial', 'cfi', 'multi'];
 const SE: Cert[] = ['private', 'commercial', 'cfi'];
 const COM: Cert[] = ['commercial', 'cfi'];
+const PRE = 'Before every maneuver';
 const TL = 'Takeoffs, landings and go-arounds';
 const PERF = 'Performance and ground reference';
 const SLOW = 'Slow flight and stalls';
@@ -47,6 +49,7 @@ const ME = 'Multi-engine operations';
 
 /** Every maneuver, in checkride order. */
 export const MANEUVERS: ManeuverDef[] = [
+  { id: 'clearing-turns', title: 'Clearing Turns and Pre-Maneuver Checks', group: PRE, summary: 'Clear the area, radio call, altitude and airspeed, configure.', build: buildClearingTurns, certs: ALL, needs: 'perf' },
   { id: 'traffic-pattern', title: 'Pattern Lap — Conway (KCXW) Rwy 22', group: TL, summary: 'Takeoff, all four legs, configuration and power at each point, landing.', build: (ac, c) => buildPattern(ac, c), certs: ALL, needs: 'pattern' },
   { id: 'normal-takeoff', title: 'Normal Takeoff and Climb', group: TL, summary: 'Rotation, Vy climb, departure.', build: buildNormalTakeoff, certs: ALL, needs: 'pattern' },
   { id: 'normal-landing', title: 'Normal Approach and Landing', group: TL, summary: 'Stabilized approach, flare and touchdown.', build: buildNormalLanding, certs: ALL, needs: 'pattern' },

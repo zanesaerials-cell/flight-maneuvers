@@ -65,7 +65,7 @@ function airworkRun(base: {
 
 const setupText = (q: { airworkAltFt: number; airworkGroundFt: number }, extra: string[] = []) => [
   `At least 1,500 ft AGL — shown at ${n(q.airworkAltFt)} ft MSL (${n(q.airworkAltFt - q.airworkGroundFt)} ft AGL).`,
-  'Clearing turns first (not animated). Pick a heading and an outside reference.',
+  'Clearing turns, radio call and pre-maneuver checks first (see “Clearing Turns and Pre-Maneuver Checks”). Pick a heading and an outside reference.',
   ...extra,
 ];
 

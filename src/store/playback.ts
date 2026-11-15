@@ -6,12 +6,20 @@ import { useSyncExternalStore } from 'react';
  */
 type Listener = () => void;
 
+// Viewer preferences remembered in this browser only; storage can be unavailable, so every access is guarded.
+function readFlag(key: string): boolean { try { return localStorage.getItem(`fm.${key}`) === '1'; } catch { return false; } }
+function readNum(key: string, fallback: number): number { try { const v = Number(localStorage.getItem(`fm.${key}`)); return v > 0 ? v : fallback; } catch { return fallback; } }
+function writeFlag(key: string, value: string) { try { localStorage.setItem(`fm.${key}`, value); } catch { /* not available */ } }
+
 class Playback {
   time = 0;
   duration = 1;
   playing = false;
-  speed = 1;
+  speed = readNum('speed', 1);
   loop = true;
+  /** Pause automatically each time playback reaches the start of a new step. */
+  stopAtSteps = readFlag('stopAtSteps');
+  private marks: number[] = [];
   private listeners = new Set<Listener>();
   private raf = 0;
   private last = 0;
@@ -32,7 +40,12 @@ class Playback {
     this.emit();
   }
 
-  setSpeed(s: number) { this.speed = s; this.emit(); }
+  setSpeed(s: number) { this.speed = s; writeFlag('speed', String(s)); this.emit(); }
+
+  setStopAtSteps(on: boolean) { this.stopAtSteps = on; writeFlag('stopAtSteps', on ? '1' : ''); this.emit(); }
+
+  /** Start times of the steps, where "stop at each step" pauses. */
+  setMarks(starts: number[]) { this.marks = starts.filter((t) => t > 0.05); }
 
   play() {
     if (this.playing) return;
@@ -41,9 +54,15 @@ class Playback {
     this.last = performance.now();
     const tick = (now: number) => {
       if (!this.playing) return;
-      const dt = Math.min(0.25, (now - this.last) / 1000);
+      // A frame timestamp can be slightly earlier than the click that started playback; never step backwards.
+      const dt = Math.max(0, Math.min(0.25, (now - this.last) / 1000));
       this.last = now;
+      const prev = this.time;
       this.time += dt * this.speed;
+      if (this.stopAtSteps) {
+        const hit = this.marks.find((m) => prev < m && m <= this.time);
+        if (hit !== undefined) { this.time = hit; this.playing = false; this.emit(); return; }
+      }
       if (this.time >= this.duration) {
         if (this.loop) this.time = 0;
         else { this.time = this.duration; this.playing = false; }
@@ -69,10 +88,10 @@ class Playback {
 
 export const playback = new Playback();
 
-let snapshot = { time: 0, playing: false, speed: 1 };
+let snapshot = { time: 0, playing: false, speed: 1, stopAtSteps: false };
 const getSnapshot = () => {
-  if (snapshot.time !== playback.time || snapshot.playing !== playback.playing || snapshot.speed !== playback.speed) {
-    snapshot = { time: playback.time, playing: playback.playing, speed: playback.speed };
+  if (snapshot.time !== playback.time || snapshot.playing !== playback.playing || snapshot.speed !== playback.speed || snapshot.stopAtSteps !== playback.stopAtSteps) {
+    snapshot = { time: playback.time, playing: playback.playing, speed: playback.speed, stopAtSteps: playback.stopAtSteps };
   }
   return snapshot;
 };

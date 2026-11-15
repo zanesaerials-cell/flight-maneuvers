@@ -88,7 +88,7 @@ function describeWindows(run: ManeuverRun, w: [number, number][]) {
   return names.length ? `from “${names[0]}”${names.length > 1 ? ' and again later' : ''}` : 'during the maneuver';
 }
 
-export function Transport({ run, t, playing, speed }: { run: ManeuverRun; t: number; playing: boolean; speed: number }) {
+export function Transport({ run, t, playing, speed, stopAtSteps }: { run: ManeuverRun; t: number; playing: boolean; speed: number; stopAtSteps: boolean }) {
   const active = activeStepIndex(run, t);
   const go = (i: number) => {
     const s = run.steps[clamp(i, 0, run.steps.length - 1)];
@@ -123,10 +123,15 @@ export function Transport({ run, t, playing, speed }: { run: ManeuverRun; t: num
       </div>
       <span className="clock">{fmtTime(t)} / {fmtTime(run.duration)}</span>
       <div className="speeds" role="group" aria-label="Playback speed">
-        {[0.5, 1, 2, 4].map((s) => (
-          <button key={s} className={speed === s ? 'on' : ''} onClick={() => playback.setSpeed(s)}>{s}×</button>
+        {[0.25, 0.5, 1, 2, 4].map((s) => (
+          <button key={s} className={speed === s ? 'on' : ''} onClick={() => playback.setSpeed(s)} aria-label={`${s} times speed`}>{s === 0.25 ? '¼' : s === 0.5 ? '½' : s}×</button>
         ))}
       </div>
+      <button className={`stepstop${stopAtSteps ? ' on' : ''}`} aria-pressed={stopAtSteps} onClick={() => playback.setStopAtSteps(!stopAtSteps)}
+        title="Pause at the start of every step, so there is time to read it">
+        <svg viewBox="0 0 24 24" aria-hidden><path d="M5 4h2v16H5zM10 5h3v14h-3zM16 5h3v14h-3z" /></svg>
+        <span className="ss-long">Stop at each step</span><span className="ss-short">Step stops</span>
+      </button>
     </div>
   );
 }

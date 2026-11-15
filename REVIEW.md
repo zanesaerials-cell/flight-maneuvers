@@ -135,6 +135,22 @@ Sources: Tecnam P-Mentor AFM (sections 2, 4, 5), DA42 AFM Doc. 7.01.05-E Rev. 8 
 | Accelerated stall | 3,500 ft AGL, 45° bank, recover at the warning |
 | Secondary / cross-controlled / elevator trim stalls | Entered from an idle glide, recovered at first indication |
 
+## New: Clearing Turns and Pre-Maneuver Checks (all airplanes, all sections) — awaiting review
+
+Flown at each airplane's airwork altitude, heading 360°, in this order:
+
+1. Pick the practice area (recover by 1,500 ft AGL or higher, landing field nearby, landmark).
+2. Clearing turn left 90° at 30° bank, then right 90° back to the entry heading.
+3. Radio call: “Area traffic, [type] [callsign], [altitude], [position from landmark], maneuvering for the next [time], area traffic.”
+4. Altitude on a round number, airspeed at or below Va (steep-turn entry speed), trimmed.
+5. Configure — **check** each list against your school's checklist:
+   - C172S: fuel selector BOTH; mixture for the altitude; landing light ON; seatbelts, loose items; engine instruments green.
+   - P-Mentor: fuel pump ON; fuel selector on the fuller tank; landing light ON; seatbelts, loose items; engine instruments green.
+   - DA42: fuel selectors ON (crossfeed off); electric fuel pumps ON; landing and strobe lights ON; gear and flaps as the maneuver requires; seatbelts, loose items; engine instruments green on both engines.
+6. Ready: outside reference on the entry heading, final look, begin.
+
+**check:** two 90° turns vs one 180°; 30° bank; radio-call wording.
+
 ## 3D models
 
 - **DA42** (helijah, CC BY 4.0) is rigged by `tools/prepare-da42-model.mjs`:

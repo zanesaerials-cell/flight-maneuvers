@@ -147,6 +147,8 @@ export interface AircraftProfile {
     engineFailure: string;
     cruiseSetup: string;
     slipNote: string;
+    /** Configure items before airwork (pre-maneuver checklist). */
+    preManeuver: string[];
   };
   model: { url: string; credit: string; creditUrl: string } | null;
   multi?: MultiSettings;
@@ -196,6 +198,7 @@ export const C172S: AircraftProfile = {
     engineFailure: 'C: Checklist (C172S engine failure in flight): airspeed 68 KIAS; fuel shutoff valve ON; fuel selector BOTH; fuel pump ON; mixture RICH; ignition BOTH (START if the prop has stopped).',
     cruiseSetup: 'mixture as set for the altitude',
     slipNote: 'C172S POH: avoid slips with more than 20° of flaps.',
+    preManeuver: ['Fuel selector BOTH', 'Mixture set for the altitude (rich below 3,000 ft)', 'Landing light ON', 'Seatbelts fastened, loose items stowed', 'Engine instruments in the green'],
   },
   model: {
     url: 'models/c172s.glb',
@@ -346,6 +349,7 @@ export const P_MENTOR: AircraftProfile = {
     engineFailure: 'C: Checklist — follow the P-Mentor AFM engine-failure-in-flight procedure: best glide 70 KIAS, fuel pump ON, fuel selector and LANE A/B switches checked, attempt a restart.',
     cruiseSetup: 'fuel pump ON',
     slipNote: 'Check the AFM for any limits on slips with flaps extended.',
+    preManeuver: ['Fuel pump ON', 'Fuel selector on the fuller tank', 'Landing light ON', 'Seatbelts fastened, loose items stowed', 'Engine instruments in the green'],
   },
   // The P2002 Sierra stand-in model is under the Sketchfab Standard licence, which does not allow the file to be
   // redistributed, so it is not in this repository. Add public/models/p2002.glb yourself (see README) and fill in the credit.
@@ -412,6 +416,7 @@ export const DA42: AircraftProfile = {
     engineFailure: 'Follow the AFM engine-failure checklist.',
     cruiseSetup: 'gear UP, flaps UP',
     slipNote: '',
+    preManeuver: ['Fuel selectors ON (crossfeed off)', 'Electric fuel pumps ON', 'Landing and strobe lights ON', 'Gear and flaps as the maneuver requires', 'Seatbelts fastened, loose items stowed', 'Engine instruments in the green on both engines'],
   },
   model: {
     url: 'models/da42.glb',

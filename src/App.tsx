@@ -132,13 +132,14 @@ function useWide() {
 
 function Viewer({ ac, cert, def }: { ac: AircraftProfile; cert: Cert; def: ManeuverDef }) {
   const run = useMemo(() => buildManeuver(def, ac, cert), [ac, cert, def]);
-  const { time, playing, speed } = usePlayback();
+  const { time, playing, speed, stopAtSteps } = usePlayback();
   const [view, setView] = useState<ViewMode>('chase');
   const [tab, setTab] = useState<'steps' | 'controls' | 'acs'>('steps');
   const wide = useWide();
 
   useEffect(() => {
     playback.reset(run.duration);
+    playback.setMarks(run.steps.map((s) => s.start));
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (!reduce) playback.play();
     return () => playback.stop();
@@ -205,7 +206,7 @@ function Viewer({ ac, cert, def }: { ac: AircraftProfile; cert: Cert; def: Maneu
         )}
       </div>
 
-      <Transport run={run} t={time} playing={playing} speed={speed} />
+      <Transport run={run} t={time} playing={playing} speed={speed} stopAtSteps={stopAtSteps} />
     </div>
   );
 }
