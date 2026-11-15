@@ -15,6 +15,7 @@ class Playback {
   private listeners = new Set<Listener>();
   private raf = 0;
   private last = 0;
+  private lastEmit = 0;
 
   subscribe = (l: Listener) => { this.listeners.add(l); return () => { this.listeners.delete(l); }; };
   private emit() { this.listeners.forEach((l) => l()); }
@@ -47,7 +48,10 @@ class Playback {
         if (this.loop) this.time = 0;
         else { this.time = this.duration; this.playing = false; }
       }
-      this.emit();
+      // The 3D scene reads `time` directly every frame. The React panels (PFD,
+      // controls, steps) only need ~30 updates a second, which keeps the main
+      // thread free so the 3D view never waits on a long render.
+      if (now - this.lastEmit >= 32 || !this.playing) { this.lastEmit = now; this.emit(); }
       if (this.playing) this.raf = requestAnimationFrame(tick);
     };
     this.raf = requestAnimationFrame(tick);

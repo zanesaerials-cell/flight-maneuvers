@@ -62,8 +62,14 @@ export function Scene3D({ run, mode, ac }: { run: ManeuverRun; mode: ViewMode; a
 
 function World({ run, mode, ac }: { run: ManeuverRun; mode: ViewMode; ac: AircraftProfile }) {
   const elev = run.scene.groundElevFt;
-  const frameRef = useRef<Frame>(run.frames[0]);
-  const getFrame = () => frameRef.current;
+  // Every part of the scene (airplane, camera, control surfaces, gear) samples the
+  // same instant: the frame is computed once per clock time, whoever asks first.
+  const cache = useRef<{ t: number; f: Frame }>({ t: -1, f: run.frames[0] });
+  const getFrame = useMemo(() => () => {
+    const t = playback.time;
+    if (cache.current.t !== t) cache.current = { t, f: sampleAt(run.frames, run.dt, t) };
+    return cache.current.f;
+  }, [run]);
   const plane = useRef<THREE.Group>(null);
   const shadow = useRef<THREE.Mesh>(null);
   const flown = useRef<Line2>(null);
@@ -84,8 +90,7 @@ function World({ run, mode, ac }: { run: ManeuverRun; mode: ViewMode; ac: Aircra
   const groundPts = useMemo(() => pathPts.map((p) => new THREE.Vector3(p.x, 0.6, p.z)), [pathPts]);
 
   useFrame(() => {
-    const f = sampleAt(run.frames, run.dt, playback.time);
-    frameRef.current = f;
+    const f = getFrame();
     const g = plane.current;
     if (g) {
       const scale = mode === 'top' ? 9 : 1;
