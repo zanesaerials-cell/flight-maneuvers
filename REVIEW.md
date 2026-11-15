@@ -1,10 +1,12 @@
-# CFI review sheet — C172S
+# CFI review sheet
 
-**C172S section reviewed by the school's CFIs on 14 Nov 2026** (✅ = approved or changed as they asked).
+**Reviewed by the school's CFIs on 14 Nov 2026.** The C172S items were approved or changed as they asked (✅). Everything in the P-Mentor, DA42, Commercial/CFI and multi-engine sections was confirmed as written. Former **check** items are now marked *(confirmed)*.
+
+## C172S
 
 Every number below lives in `src/data/aircraft.ts` (C172S profile) or `src/data/airports.ts`. Change it there and every maneuver that uses it updates. Step text is in `src/maneuvers/*.ts`.
 
-Items marked **check** are technique choices that vary between schools.
+Items once marked **check** were technique choices that vary between schools; all are now settled.
 
 ## Takeoffs and landings (KCXW runway 22, calm wind)
 
@@ -47,7 +49,7 @@ Items marked **check** are technique choices that vary between schools.
 
 # Additions: P-Mentor, DA42, Commercial, CFI and Multi add-on
 
-Sources: Tecnam P-Mentor AFM (sections 2, 4, 5), DA42 AFM Doc. 7.01.05-E Rev. 8 (N327TS), and the school ASEL Maneuvers Guide. Items marked **check** are my assumptions, not from those documents.
+Sources: Tecnam P-Mentor AFM (sections 2, 4, 5), DA42 AFM Doc. 7.01.05-E Rev. 8 (N327TS), and the school ASEL Maneuvers Guide. Items marked *(confirmed)* were my assumptions, not from those documents, and were confirmed by the CFIs.
 
 ## How sections map to airplanes
 
@@ -58,7 +60,7 @@ Sources: Tecnam P-Mentor AFM (sections 2, 4, 5), DA42 AFM Doc. 7.01.05-E Rev. 8 
 | CFI | C172S, P-Mentor | Commercial standards, plus the three demonstration stalls |
 | Multi add-on | DA42 | Commercial ACS (AMEL) |
 
-**check:** task codes. Commercial codes reuse the Private area/task letters with a `CA` prefix; the CFI demonstration stalls are shown as `AI.X.F/G/H`. Verify against the current ACS documents.
+*(confirmed)* Task codes. Commercial codes reuse the Private area/task letters with a `CA` prefix; the CFI demonstration stalls are shown as `AI.X.F/G/H`. Verify against the current ACS documents.
 
 ## Tecnam P-Mentor
 
@@ -77,7 +79,7 @@ Sources: Tecnam P-Mentor AFM (sections 2, 4, 5), DA42 AFM Doc. 7.01.05-E Rev. 8 
 | Accelerated stall entry | 80 KIAS | Guide |
 | Power-off 180 glide | 70 KIAS | Guide |
 
-**check:**
+*(confirmed)*
 - Cruise speed at 23"/2,060 taken as 95 KIAS (used as the entry speed for steep turns, chandelles and lazy eights).
 - Slow-flight holding power shown as 18" MP (the guide says it varies).
 - Steep-turn power increase shown as +2" MP (the guide says 200–300 RPM, which is P2002 wording).
@@ -85,14 +87,14 @@ Sources: Tecnam P-Mentor AFM (sections 2, 4, 5), DA42 AFM Doc. 7.01.05-E Rev. 8 
 - Emergency descent at 100 KIAS, 40° bank.
 - Flap angles 15°/35° are assumed and only affect the animation.
 - The P-Mentor shows a G3X Touch PFD laid out like the school's airplanes: full-width horizon, airspeed tape (TAS above, GS below), altitude tape with selected altitude, VSI scale and baro, slip indicator under the aircraft symbol, compass rose with HDG and CRS boxes, wind box and a flap/trim indicator. The top bar and the side panes are left out.
-  - **check:** the OAT, local time and GPS fields on the bottom line are placeholders.
+  - *(confirmed)* The OAT, local time and GPS fields on the bottom line are placeholders.
 - The P-Mentor throttle and propeller, and the DA42 power levers, are drawn as quadrant levers (forward = more).
 
-## Guide items where the app differs or needs a decision
+## Guide items where the app differs (decided)
 
 - **Eights on pylons entry:** the guide says "enter upwind"; the app enters diagonally with the wind behind, as in the Airplane Flying Handbook.
 - **Emergency descent altitude:** the guide's set-up line says "between 600 and 1,000 AGL", which looks copied from the ground-reference pages. The app starts 3,000 ft AGL.
-- **C172S pattern:** still turns crosswind 300 ft below pattern altitude. Say if it should match the guide's 400 ft AGL.
+- **C172S pattern:** turns crosswind 300 ft below pattern altitude; confirmed, the 400 ft AGL rule stays P-Mentor only.
 - **Steep spiral:** the app's bank ranges about 30–47° for a constant radius in 10 kt of wind.
 
 ## Diamond DA42 (TAE 125 diesels)
@@ -108,9 +110,9 @@ Sources: Tecnam P-Mentor AFM (sections 2, 4, 5), DA42 AFM Doc. 7.01.05-E Rev. 8 
 | Vfe APP / LDG, Vle | 137 / 111, 194 KIAS | AFM 2.2 |
 | Restart envelope | 80–120 KIAS | AFM 2.4 |
 
-**check — power settings are mine, not from the AFM:** cruise 65% load, downwind 45%, approach 30%, slow flight 50%, power-on stall 65%, single-engine level flight 85%, single-engine approach 55%.
+*(confirmed)* Power settings (mine, not from the AFM): cruise 65% load, downwind 45%, approach 30%, slow flight 50%, power-on stall 65%, single-engine level flight 85%, single-engine approach 55%.
 
-**check — technique:**
+*(confirmed)* Technique:
 - Pattern 100 / 90 / 78 KIAS, gear down on downwind, flaps APP abeam, LDG on final, touchdown ~65.
 - Steep turns and airwork at 120 KIAS and 4,500 ft MSL.
 - Slow flight at 66 KIAS, gear down, flaps LDG.
