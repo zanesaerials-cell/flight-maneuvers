@@ -8,6 +8,7 @@ import { MODEL_RIGS, type ModelRig } from '../data/modelRigs';
 import type { Frame } from '../engine/types';
 import { D2R } from '../engine/kinematics';
 import { setModelLoading } from '../store/loading';
+import { buildPMentor } from './PMentorModel';
 import { Cessna172, WHEEL_CONTACTS as PROCEDURAL_CONTACTS } from './Cessna172';
 
 export const rigFor = (ac: AircraftProfile): ModelRig => MODEL_RIGS[ac.id] ?? MODEL_RIGS.c172s;
@@ -51,6 +52,8 @@ function loadModel(url: string) {
   let p = pending.get(url);
   if (!p) {
     p = (async () => {
+      // Models built in code rather than loaded from a file.
+      if (url === 'procedural:p-mentor') { const g = new THREE.Group(); g.add(buildPMentor()); return g; }
       const embedded = (window as unknown as { __MODELS_B64?: Record<string, string> }).__MODELS_B64?.[url];
       let buf: ArrayBuffer;
       if (embedded) {

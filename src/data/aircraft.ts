@@ -351,9 +351,8 @@ export const P_MENTOR: AircraftProfile = {
     slipNote: 'Check the AFM for any limits on slips with flaps extended.',
     preManeuver: ['Fuel pump ON', 'Fuel selector on the fuller tank', 'Landing light ON', 'Seatbelts fastened, loose items stowed', 'Engine instruments in the green'],
   },
-  // The P2002 Sierra stand-in model is under the Sketchfab Standard licence, which does not allow the file to be
-  // redistributed, so it is not in this repository. Add public/models/p2002.glb yourself (see README) and fill in the credit.
-  model: { url: 'models/p2002.glb', credit: '', creditUrl: '' },
+  // Original model built in code for this app (components/PMentorModel.ts), to published dimensions.
+  model: { url: 'procedural:p-mentor', credit: '', creditUrl: '' },
   procedures: {
     steepTurns: { altitudeFt: 3000, groundElevFt: 1000, entryIas: 95, entryRpm: 23, turnRpm: 25, bankDeg: 45, rollRateDps: 10 },
     sTurns: { aglFt: 800, groundElevFt: 1000, ias: 90, rpm: 20, radiusM: 330, windFromDeg: 360, windKt: 10 },

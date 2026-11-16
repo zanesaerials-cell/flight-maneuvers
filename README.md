@@ -94,7 +94,7 @@ The ailerons, flaps, elevator and rudder rotate about their real hinge lines. `W
 
 ## P-Mentor model
 
-The P-Mentor uses a Tecnam P2002 Sierra model as a look-alike. That model is under the Sketchfab Standard licence, which does not allow redistributing the file, so `public/models/p2002.glb` is git-ignored. To use it on a deployment you control, convert the Sketchfab download with `node tools/prepare-static-model.mjs scene.gltf public/models/p2002.glb rig.json -1.15 0 1`, then fill in `model.credit` for the P-Mentor in `src/data/aircraft.ts`. Without the file the app shows a built-in low-wing stand-in.
+The P-Mentor model is original and built in code (`src/components/PMentorModel.ts`, proportions in `src/data/pmentorShape.ts`) to the published dimensions; the P2002 Sierra served only as a visual reference and is not in the repository. Hinge lines and the propeller hub are computed from the same numbers, so changing a dimension keeps the rig in step.
 
 `src/data/modelRigs.ts` holds each model's tire contact points, hinge lines, propeller hubs and gear parts.
 

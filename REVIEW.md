@@ -161,5 +161,4 @@ Flown at each airplane's airwork altitude, heading 360°, in this order:
   - The left propeller winds down and stops after the left engine fails.
   - Painted plain white: the source model's green stripes and logos are removed by the prep script.
   - The model came with the left nose baggage door open; it has been closed.
-- The **P2002 stand-in** for the P-Mentor is still a single mesh, so its surfaces do not move. The controls panel still shows every input.
-- The **P2002** model's Sketchfab Standard licence does not allow the file to be redistributed, so it is not in the repository. Without it the P-Mentor shows a built-in low-wing stand-in.
+- **P-Mentor** is an original model built in code for this app (`src/components/PMentorModel.ts`) to the published dimensions (length 6.74 m, span 9.00 m, height 2.50 m, wing area 128 sq ft, two-blade prop), using the P2002 Sierra only as a visual reference. Plain white. Ailerons, flaps, the all-moving stabilator, rudder and propeller move. **check:** overall look and proportions against your airplanes.
