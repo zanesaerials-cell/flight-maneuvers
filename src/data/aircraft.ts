@@ -250,7 +250,7 @@ export const C172S: AircraftProfile = {
       windKt: 10,
     },
     pattern: {
-      takeoffFlaps: 10,
+      takeoffFlaps: 0,
       groundAccel: 1.35,
       rotateKias: 55,
       liftoffKias: 58,

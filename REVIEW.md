@@ -12,7 +12,7 @@ Items once marked **check** were technique choices that vary between schools; al
 
 | Maneuver | Numbers used | Check |
 |---|---|---|
-| Normal takeoff | Flaps 10°, rotate 55, liftoff ~58, Vy 74, ~700 fpm, flaps up at 300 ft AGL | ✅ CFI: flaps 10° |
+| Normal takeoff | Flaps 0°, rotate 55, liftoff ~58, Vy 74, ~700 fpm | ✅ CFI: flaps 0° (changed from 10° on 16 Nov) |
 | Normal landing | Flaps 30°, 65 KIAS, ~1,500 RPM, 3.5° path, aim at 1,000 ft markers, touchdown ~48 | ✅ CFI: 65 on the glidepath |
 | Soft-field takeoff | Flaps 10°, rolling start, liftoff ~45, ground effect to Vx 62, Vy 74, flaps up at 300 ft AGL | ✅ CFI: flaps up at 300 ft AGL |
 | Soft-field landing | Flaps 30°, 61 KIAS, ~1,300 RPM in flare, touchdown ~42, nose held off, no braking | ✅ |
@@ -20,7 +20,7 @@ Items once marked **check** were technique choices that vary between schools; al
 | Short-field landing | Flaps 30°, 61 KIAS, 4.5° path, idle at the obstacle, touchdown ~45 within 200 ft, flaps up, heavy braking simulated aloud | ✅ CFI: verbally simulate heavy braking |
 | Forward slip | Flaps 0°, 65 KIAS, idle, ~450 ft high, left wing low with right rudder, ~1,150 fpm | ✅ |
 | Go-around | Full power, flaps to 20° immediately, 60 KIAS, flaps 10° then up above 65, Vy 74 | ✅ |
-| Pattern lap | Takeoff now with flaps 10°, up at 300 ft AGL; see `claude/project-decisions.md` | ✅ |
+| Pattern lap | Takeoff with flaps 0°, as the normal takeoff; see `claude/project-decisions.md` | ✅ |
 
 ## Ground reference (800 ft AGL, 90 KIAS, 2,200 RPM, wind 360° at 10 kt)
 
@@ -36,7 +36,7 @@ Items once marked **check** were technique choices that vary between schools; al
 |---|---|---|
 | Slow flight | Flaps 30°, 50 KIAS, ~1,950 RPM, 15° turns, 200 ft climb and descent | ✅ CFI: 50 kt, or +10/−0 kt above the stall horn (~45) |
 | Power-off stall | Flaps 30°, 65 KIAS stabilized descent, idle, landing attitude, horn ~46, stall ~40, recover with flaps 20° then up | ✅ CFI: full stall |
-| Power-on stall | Flaps 10° (takeoff configuration), slow to 62, ~2,300 RPM (≥65%), recover to Vx then flaps up and Vy | ✅ CFI: straight ahead, flaps 10° |
+| Power-on stall | Clean (flaps 0°, takeoff configuration), slow to 55, ~2,300 RPM (≥65%), recover to Vx then Vy | ✅ CFI: straight ahead, flaps 0° (changed 16 Nov) |
 
 ## Emergencies
 
