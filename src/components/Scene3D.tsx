@@ -1,6 +1,6 @@
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { Html, Line, OrbitControls } from '@react-three/drei';
-import { useEffect, useMemo, useRef } from 'react';
+import { Html, Line, OrbitControls, PerformanceMonitor } from '@react-three/drei';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import type { Line2 } from 'three-stdlib';
@@ -41,15 +41,22 @@ function lowestWheel(rot: THREE.Euler, scale: number) {
   return lo;
 }
 
+// Render resolution: phones and tablets start lower, and any device drops to 1× if
+// the frame rate sags, then climbs back when there is headroom.
+const TOUCH = typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches;
+const DPR_MAX = typeof window !== 'undefined' ? Math.min(window.devicePixelRatio || 1, TOUCH ? 1.5 : 2) : 1;
+
 export function Scene3D({ run, mode, ac }: { run: ManeuverRun; mode: ViewMode; ac: AircraftProfile }) {
   useAirplane(ac);
+  const [dpr, setDpr] = useState(DPR_MAX);
   return (
     <Canvas
-      dpr={[1, 2]}
+      dpr={dpr}
       camera={{ fov: 50, near: 1.5, far: 40000, position: [0, 300, 60] }}
       gl={{ antialias: true }}
       style={{ touchAction: 'none' }}
     >
+      <PerformanceMonitor onDecline={() => setDpr(1)} onIncline={() => setDpr(DPR_MAX)} flipflops={3} onFallback={() => setDpr(1)} />
       <color attach="background" args={[SKY]} />
       <fog attach="fog" args={[SKY, 2500, 14000]} />
       <hemisphereLight args={["#dfeeff", "#7d8a6a", 0.9]} />

@@ -7,6 +7,7 @@ import type { AircraftProfile } from '../data/aircraft';
 import { MODEL_RIGS, type ModelRig } from '../data/modelRigs';
 import type { Frame } from '../engine/types';
 import { D2R } from '../engine/kinematics';
+import { setModelLoading } from '../store/loading';
 import { Cessna172, WHEEL_CONTACTS as PROCEDURAL_CONTACTS } from './Cessna172';
 
 export const rigFor = (ac: AircraftProfile): ModelRig => MODEL_RIGS[ac.id] ?? MODEL_RIGS.c172s;
@@ -26,8 +27,12 @@ export function AircraftModel({ ac, getFrame }: { ac: AircraftProfile; getFrame:
   useEffect(() => {
     let live = true;
     setScene(null);
-    if (!url) return;
-    loadModel(url).then((s) => { if (live) setScene(s); }).catch(() => { /* stand-in stays */ });
+    if (!url) { setModelLoading(false); return; }
+    setModelLoading(true);
+    loadModel(url)
+      .then((s) => { if (live) setScene(s); })
+      .catch(() => { /* stand-in stays */ })
+      .finally(() => { if (live) setModelLoading(false); });
     return () => { live = false; };
   }, [url]);
   if (scene) return <Loaded scene={scene} rig={rig} getFrame={getFrame} />;

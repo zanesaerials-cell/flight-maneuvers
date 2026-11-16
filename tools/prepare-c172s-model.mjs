@@ -20,6 +20,10 @@ const scene = root.listScenes()[0];
 
 await doc.transform(flatten());
 for (const n of root.listNodes()) if (n.getMesh()) clearNodeTransform(n);
+// Cockpit detail that cannot be seen from outside (panel lettering, switches, buttons,
+// seatbelts, gauges) is most of the file; drop it. Seats, yokes and the cabin shell stay.
+const HIDDEN = /^(Static_TXT|Static_Base|Static_Display|Dynamic_Switch|Cessna_Interior_(ButtonPlate|Buttons|SeatBelt|Paddle|SeatGear|Meter))/;
+for (const n of root.listNodes()) if (HIDDEN.test(n.getName())) n.dispose();
 
 // Measured in the source frame: nose +Z (spinner tip 2.83), tail −6.61, ground y ≈ 0.
 const srcLen = 2.83 - -6.61;

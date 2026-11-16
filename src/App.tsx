@@ -1,11 +1,12 @@
 import { FeedbackButton } from './components/Feedback';
-import { memo, useEffect, useMemo, useState } from 'react';
+import { Suspense, lazy, memo, useEffect, useMemo, useState } from 'react';
 import { AIRCRAFT, getAircraft, type AircraftProfile, type Cert } from './data/aircraft';
 import { MANEUVERS, buildManeuver, isReady, maneuversFor, type ManeuverDef } from './maneuvers';
 import { certInfo } from './maneuvers/standards';
 import { sampleAt } from './engine/kinematics';
 import { playback, usePlayback } from './store/playback';
-import { Scene3D, type ViewMode } from './components/Scene3D';
+import type { ViewMode } from './components/Scene3D';
+import { useModelLoading } from './store/loading';
 import { G1000PFD } from './components/G1000PFD';
 import { G3XPFD } from './components/G3XPFD';
 import { ControlsPanel } from './components/ControlsPanel';
@@ -119,7 +120,8 @@ function Home({ ac, cert }: { ac?: AircraftProfile; cert?: Cert }) {
   );
 }
 
-const Scene = memo(Scene3D);
+// The 3D code (three.js) loads only when a maneuver is opened, so the home page opens fast.
+const Scene = memo(lazy(() => import('./components/Scene3D').then((m) => ({ default: m.Scene3D }))));
 
 function useWide() {
   const q = '(min-width: 1000px)';
@@ -190,7 +192,10 @@ function Viewer({ ac, cert, def }: { ac: AircraftProfile; cert: Cert; def: Maneu
 
       <div className="stage">
         <div className="view3d">
-          <Scene run={run} mode={view} ac={ac} />
+          <Suspense fallback={<div className="view-loading">Loading 3D view…</div>}>
+            <Scene run={run} mode={view} ac={ac} />
+          </Suspense>
+          <ModelLoading />
           <div className="view-switch" role="group" aria-label="Camera">
             {(['chase', 'side', 'top'] as ViewMode[]).map((v) => (
               <button key={v} className={view === v ? 'on' : ''} onClick={() => setView(v)}>
@@ -224,4 +229,9 @@ function Viewer({ ac, cert, def }: { ac: AircraftProfile; cert: Cert; def: Maneu
       <Transport run={run} t={time} playing={playing} speed={speed} stopAtSteps={stopAtSteps} />
     </div>
   );
+}
+
+function ModelLoading() {
+  const loading = useModelLoading();
+  return loading ? <div className="model-loading" role="status"><span className="spinner" aria-hidden />Loading airplane model…</div> : null;
 }
