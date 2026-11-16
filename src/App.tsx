@@ -1,3 +1,4 @@
+import { FeedbackButton } from './components/Feedback';
 import { memo, useEffect, useMemo, useState } from 'react';
 import { AIRCRAFT, getAircraft, type AircraftProfile, type Cert } from './data/aircraft';
 import { MANEUVERS, buildManeuver, isReady, maneuversFor, type ManeuverDef } from './maneuvers';
@@ -8,7 +9,7 @@ import { Scene3D, type ViewMode } from './components/Scene3D';
 import { G1000PFD } from './components/G1000PFD';
 import { G3XPFD } from './components/G3XPFD';
 import { ControlsPanel } from './components/ControlsPanel';
-import { AcsPanel, StepsPanel, Transport } from './components/Panels';
+import { AcsPanel, StepsPanel, Transport, activeStepIndex } from './components/Panels';
 
 /* Hash routes: #c172s, #c172s--commercial and #c172s--commercial--chandelle. Plain names keep links shareable anywhere. */
 export const routeHref = (acId?: string, cert?: string, mId?: string) =>
@@ -105,6 +106,8 @@ function Home({ ac, cert }: { ac?: AircraftProfile; cert?: Cert }) {
         ))}
       </section>
       <footer className="home-foot">
+        <FeedbackButton context={() => ({ label: 'General', where: ['Page: home', `Link: ${location.href}`] })} />
+        <br />
         For study and briefing. Not a substitute for instruction — the POH/AFM and your CFI govern.
         <br />
         3D models (scaled, re-oriented and compressed for this app):{' '}
@@ -171,6 +174,18 @@ function Viewer({ ac, cert, def }: { ac: AircraftProfile; cert: Cert; def: Maneu
           <h1>{run.title}</h1>
           <span>{ac.name} · {certInfo(cert).name}</span>
         </div>
+        <FeedbackButton compact={!wide} context={() => {
+          const t = playback.time, i = activeStepIndex(run, t);
+          const mm = `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
+          return {
+            label: `${ac.shortName} · ${certInfo(cert).name} · ${run.title}`,
+            where: [
+              `Airplane: ${ac.name}`, `Checkride: ${certInfo(cert).name}`, `Maneuver: ${run.title} (${run.acsCode})`,
+              `Step ${i + 1}: ${run.steps[i]?.title ?? '—'}`, `Time: ${mm} of ${Math.floor(run.duration / 60)}:${String(Math.floor(run.duration % 60)).padStart(2, '0')}`,
+              `Camera: ${view}, speed ${speed}×`, `Link: ${location.href}`,
+            ],
+          };
+        }} />
       </header>
 
       <div className="stage">

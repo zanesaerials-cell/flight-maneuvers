@@ -118,7 +118,7 @@ export function buildVmcDemo(ac: AircraftProfile, _cert: Cert = 'multi'): Maneuv
   const steps: Step[] = [
     { id: 'setup', title: 'Set up and clear the area', start: 0, end: m.config, detail: [
       `Recover no lower than 3,000 ft AGL — shown at ${n(alt)} ft MSL (${n(alt - ground)} ft AGL).`,
-      'Clearing turns first (not animated). Brief the recovery before you start.',
+      'Clearing turns and pre-maneuver checks first (see “Clearing Turns and Pre-Maneuver Checks”). Brief the recovery before you start.',
     ] },
     { id: 'config', title: 'Configure: takeoff configuration', start: m.config, end: m.setpower, detail: [
       `Gear UP, flaps ${fl(ac, 0)} (takeoff setting), trim for takeoff.`,

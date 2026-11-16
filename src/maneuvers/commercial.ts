@@ -501,7 +501,7 @@ export function buildAcceleratedStall(ac: AircraftProfile, _cert: Cert = 'commer
   const steps: Step[] = [
     { id: 'setup', title: 'Set up and clear the area', start: 0, end: m.slow, detail: [
       `No lower than 3,000 ft AGL — shown at ${n(alt)} ft MSL (${n(alt - ground)} ft AGL).`,
-      'Clearing turns first (not animated).',
+      'Clearing turns and pre-maneuver checks first (see “Clearing Turns and Pre-Maneuver Checks”).',
       `Cruise: ${pwT(ac, ac.pw.cruise)}, ${ac.text.cruiseSetup}, flaps up.`,
     ] },
     { id: 'slow', title: `Slow to ${entry} KIAS`, start: m.slow, end: m.bank, detail: [

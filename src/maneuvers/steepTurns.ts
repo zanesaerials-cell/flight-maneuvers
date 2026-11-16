@@ -112,7 +112,7 @@ export function buildSteepTurns(ac: AircraftProfile, cert: Cert = 'private'): Ma
       id: 'setup', title: 'Set up and clear the area', start: 0, end: marks.LRollIn,
       detail: [
         `Altitude no lower than 1,500 ft AGL. Shown at ${p.altitudeFt.toLocaleString()} ft MSL (${agl.toLocaleString()} ft AGL).`,
-        'Make clearing turns before you start (not animated).',
+        'Clearing turns and pre-maneuver checks first (see “Clearing Turns and Pre-Maneuver Checks”).',
         `Power ${pwT(ac, p.entryRpm)}, stabilize at ${p.entryIas} KIAS, ${ac.text.cruiseSetup}.`,
         `Entry speed must not exceed Va for your weight: ${vaList}.`,
         'Trim for level flight. Note the entry heading, 360°, and pick a reference on the horizon.',
