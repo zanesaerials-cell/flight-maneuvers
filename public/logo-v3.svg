@@ -2,16 +2,18 @@
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a3440"/><stop offset="1" stop-color="#1a1e23"/></linearGradient>
     <linearGradient id="plastic" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#e3e8ec"/></linearGradient>
-    <linearGradient id="wingL" x1="1" y1="0" x2="0" y2="0"><stop offset="0" stop-color="#eef2f5"/><stop offset="1" stop-color="#cfd7de"/></linearGradient>
-    <linearGradient id="wingR" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#eef2f5"/><stop offset="1" stop-color="#cfd7de"/></linearGradient>
+    <linearGradient id="wingL" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5fe3ff"/><stop offset="0.55" stop-color="#22a8f0"/><stop offset="1" stop-color="#1673c9"/></linearGradient>
+    <linearGradient id="wingR" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5fe3ff"/><stop offset="0.55" stop-color="#22a8f0"/><stop offset="1" stop-color="#1673c9"/></linearGradient>
   </defs>
   <rect x="0" y="0" width="1024" height="1024" fill="url(#bg)"/>
 
   <!-- Wings: from under the seat, out to each side with a little dihedral -->
-  <path d="M 330 592 L 100 536 Q 66 530 66 554 Q 66 578 100 582 L 330 648 Z" fill="url(#wingL)"/>
-  <path d="M 694 592 L 924 536 Q 958 530 958 554 Q 958 578 924 582 L 694 648 Z" fill="url(#wingR)"/>
-  <circle cx="80" cy="558" r="13" fill="#33d17a"/>
-  <circle cx="944" cy="558" r="13" fill="#ff4b4b"/>
+  <path d="M 340 560 L 82 470 Q 34 456 30 492 Q 28 526 74 538 L 340 650 Z" fill="url(#wingL)"/>
+  <path d="M 340 566 L 84 478 Q 52 470 46 486" fill="none" stroke="#c9f6ff" stroke-width="10" stroke-linecap="round" opacity="0.8"/>
+  <path d="M 684 560 L 942 470 Q 990 456 994 492 Q 996 526 950 538 L 684 650 Z" fill="url(#wingR)"/>
+  <path d="M 684 566 L 940 478 Q 972 470 978 486" fill="none" stroke="#c9f6ff" stroke-width="10" stroke-linecap="round" opacity="0.8"/>
+  <circle cx="40" cy="500" r="17" fill="#33d17a" stroke="#0e3b22" stroke-width="3"/>
+  <circle cx="984" cy="500" r="17" fill="#ff4b4b" stroke="#4a0f0f" stroke-width="3"/>
 
   <!-- Rear legs (further away, a shade darker) -->
   <path d="M 398 640 L 384 846 Q 383 858 395 858 L 412 858 Q 422 858 422 846 L 432 640 Z" fill="#b9c2ca"/>
