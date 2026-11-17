@@ -54,7 +54,18 @@ a.ac-card:hover { border-color: var(--mute); }
 .ac-blurb { color: var(--mute); font-size: 15px; }
 .ac-status { margin-top: 8px; font-size: 14px; color: var(--faint); }
 .ac-status.ready { color: var(--ok); }
-.m-group h3 { font-size: 15px; font-weight: 600; color: var(--mute); margin: 22px 0 8px; }
+.m-group { border: 1px solid var(--line); border-radius: var(--radius-m); background: var(--bezel-2); margin-top: 10px; overflow: hidden; }
+.m-group summary { list-style: none; display: flex; align-items: center; gap: 10px; padding: 14px 16px; cursor: pointer; font-size: 18px; font-weight: 600; min-height: 52px; }
+.m-group summary::-webkit-details-marker { display: none; }
+.m-group summary:hover { background: var(--bezel-3); }
+.m-group summary:focus-visible { outline: 2px solid var(--cyan); outline-offset: -2px; }
+.m-group-name { flex: 1; min-width: 0; }
+.m-count { font-size: 14px; font-weight: 600; color: var(--mute); background: var(--bezel-3); border-radius: 999px; padding: 2px 9px; }
+.m-chev { width: 20px; height: 20px; fill: none; stroke: var(--mute); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; transition: transform 0.15s; }
+.m-group[open] .m-chev { transform: rotate(180deg); }
+.m-group[open] summary { border-bottom: 1px solid var(--line); }
+.m-group .m-list { border-top: 0; }
+.m-group .m-row { padding-left: 16px; padding-right: 16px; }
 .m-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
 .m-row {
   display: grid; grid-template-columns: minmax(0, 1fr); column-gap: 14px; align-items: baseline;

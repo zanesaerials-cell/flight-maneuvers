@@ -44,6 +44,16 @@ function Home({ ac, cert }: { ac?: AircraftProfile; cert?: Cert }) {
     return [...g.entries()];
   }, [ac, cert]);
   const credits = AIRCRAFT.filter((a) => a.model?.credit);
+  // Maneuver groups start closed so the list is short on a phone; the ones opened are remembered in this browser.
+  const [openGroups, setOpenGroups] = useState<Set<string>>(() => {
+    try { return new Set(JSON.parse(localStorage.getItem('fm.openGroups') ?? '[]')); } catch { return new Set(); }
+  });
+  const toggleGroup = (g: string, open: boolean) => setOpenGroups((prev) => {
+    if (prev.has(g) === open) return prev;
+    const next = new Set(prev); if (open) next.add(g); else next.delete(g);
+    try { localStorage.setItem('fm.openGroups', JSON.stringify([...next])); } catch { /* not available */ }
+    return next;
+  });
 
   return (
     <main className="home">
@@ -91,8 +101,13 @@ function Home({ ac, cert }: { ac?: AircraftProfile; cert?: Cert }) {
         <h2><span className="pick-n">3</span>Choose a maneuver</h2>
         {!(ac && cert) && <p className="hint">You will see only the maneuvers on that checkride, flown to its standards.</p>}
         {ac && cert && groups.map(([group, list]) => (
-          <div key={group} className="m-group">
-            <h3>{group}</h3>
+          <details key={group} className="m-group" open={openGroups.has(group)}
+            onToggle={(e) => toggleGroup(group, (e.currentTarget as HTMLDetailsElement).open)}>
+            <summary>
+              <span className="m-group-name">{group}</span>
+              <span className="m-count">{list.length}</span>
+              <svg className="m-chev" viewBox="0 0 24 24" aria-hidden><path d="M6 9l6 6 6-6" /></svg>
+            </summary>
             <ul className="m-list">
               {list.map((m) => (
                 <li key={m.id}>
@@ -103,7 +118,7 @@ function Home({ ac, cert }: { ac?: AircraftProfile; cert?: Cert }) {
                 </li>
               ))}
             </ul>
-          </div>
+          </details>
         ))}
       </section>
       <footer className="home-foot">
