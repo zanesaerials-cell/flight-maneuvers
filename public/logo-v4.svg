@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a3440"/><stop offset="1" stop-color="#1a1e23"/></linearGradient>
+    <linearGradient id="plastic" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#e3e8ec"/></linearGradient>
+    <linearGradient id="wingShade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="0.6" stop-color="#e6ebef"/><stop offset="1" stop-color="#b8c2cb"/></linearGradient>
+    <radialGradient id="glowGreen"><stop offset="0" stop-color="#b8ffd2" stop-opacity="1"/><stop offset="0.14" stop-color="#3cf08a" stop-opacity="0.75"/><stop offset="0.38" stop-color="#1fd06a" stop-opacity="0.3"/><stop offset="0.7" stop-color="#17c45f" stop-opacity="0.08"/><stop offset="1" stop-color="#17c45f" stop-opacity="0"/></radialGradient>
+    <radialGradient id="glowRed"><stop offset="0" stop-color="#ffd0c8" stop-opacity="1"/><stop offset="0.14" stop-color="#ff5547" stop-opacity="0.75"/><stop offset="0.38" stop-color="#f2342a" stop-opacity="0.3"/><stop offset="0.7" stop-color="#e0261b" stop-opacity="0.08"/><stop offset="1" stop-color="#e0261b" stop-opacity="0"/></radialGradient>
+    <radialGradient id="coreGreen"><stop offset="0" stop-color="#ffffff"/><stop offset="0.45" stop-color="#d6ffe6"/><stop offset="1" stop-color="#3cf08a"/></radialGradient>
+    <radialGradient id="coreRed"><stop offset="0" stop-color="#ffffff"/><stop offset="0.45" stop-color="#ffe0dc"/><stop offset="1" stop-color="#ff5547"/></radialGradient>
+  </defs>
+  <rect x="0" y="0" width="1024" height="1024" fill="url(#bg)"/>
+
+  <!-- Wings: tapered toward the tip, blended winglets, a little dihedral -->
+  <g id="wing">
+    <path d="M 336 578 L 166 534 C 134 526 124 512 122 486 L 117 430 C 115 414 94 414 93 430 L 88 498 C 84 556 112 580 158 590 L 336 664 Z" fill="url(#wingShade)"/>
+    <path d="M 336 583 L 168 539 C 138 531 127 516 125 488 L 121 440" fill="none" stroke="#ffffff" stroke-width="6" stroke-linecap="round" opacity="0.95"/>
+    <path d="M 336 650 L 160 580" fill="none" stroke="#9aa6b1" stroke-width="4" stroke-linecap="round" opacity="0.6"/>
+  </g>
+  <use href="#wing" transform="translate(1024 0) scale(-1 1)"/>
+  <!-- Nav lights on the winglet roots, glowing; green is the right wing, on the viewer's left from the front -->
+  <circle cx="94" cy="520" r="105" fill="url(#glowGreen)"/>
+  <circle cx="930" cy="520" r="105" fill="url(#glowRed)"/>
+  <circle cx="94" cy="520" r="14" fill="url(#coreGreen)"/>
+  <circle cx="930" cy="520" r="14" fill="url(#coreRed)"/>
+
+  <!-- Rear legs (further away, a shade darker) -->
+  <path d="M 398 640 L 384 846 Q 383 858 395 858 L 412 858 Q 422 858 422 846 L 432 640 Z" fill="#b9c2ca"/>
+  <path d="M 626 640 L 640 846 Q 641 858 629 858 L 612 858 Q 602 858 602 846 L 592 640 Z" fill="#b9c2ca"/>
+
+  <!-- Backrest with the classic vertical slots -->
+  <path d="M 336 290 Q 336 222 404 216 Q 512 204 620 216 Q 688 222 688 290 L 668 548 L 356 548 Z" fill="url(#plastic)"/>
+  <g fill="#232a32">
+    <rect x="418" y="300" width="26" height="170" rx="13"/>
+    <rect x="473" y="294" width="26" height="182" rx="13"/>
+    <rect x="525" y="294" width="26" height="182" rx="13"/>
+    <rect x="580" y="300" width="26" height="170" rx="13"/>
+  </g>
+
+  <!-- Armrests sweeping down and out to the front of the seat -->
+  <path d="M 340 400 Q 286 410 278 470 Q 274 530 292 588 L 340 588 Q 324 530 330 476 Q 336 440 352 432 Z" fill="url(#plastic)"/>
+  <path d="M 684 400 Q 738 410 746 470 Q 750 530 732 588 L 684 588 Q 700 530 694 476 Q 688 440 672 432 Z" fill="url(#plastic)"/>
+
+  <!-- Seat front edge -->
+  <path d="M 284 568 Q 512 548 740 568 Q 752 570 750 590 L 744 616 Q 742 628 728 628 Q 512 612 296 628 Q 282 628 280 616 L 274 590 Q 272 570 284 568 Z" fill="#ffffff"/>
+  <path d="M 296 628 Q 512 612 728 628 L 722 642 Q 512 628 302 642 Z" fill="#cdd4da"/>
+
+  <!-- Front legs, splayed -->
+  <path d="M 304 632 L 262 872 Q 260 886 274 886 L 304 886 Q 316 886 318 874 L 360 636 Z" fill="url(#plastic)"/>
+  <path d="M 720 632 L 762 872 Q 764 886 750 886 L 720 886 Q 708 886 706 874 L 664 636 Z" fill="url(#plastic)"/>
+</svg>
