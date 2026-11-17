@@ -21,11 +21,11 @@ export default defineConfig(({ mode }) => ({
       // and a new version is picked up the next time it is opened online.
       VitePWA({
         registerType: 'autoUpdate',
-        includeAssets: ['apple-touch-icon.png'],
+        includeAssets: ['apple-touch-icon.png', 'logo.svg', 'favicon-32.png'],
         manifest: {
-          name: 'Maneuver Visualizer',
-          short_name: 'Maneuvers',
-          description: 'Checkride maneuvers flown to the standard: 3D view, PFD, controls and steps for your airplane.',
+          name: 'Chair Flight',
+          short_name: 'Chair Flight',
+          description: 'Chair-fly every checkride maneuver: 3D view, PFD, controls and steps for the airplane you fly.',
           theme_color: '#1f2328',
           background_color: '#1f2328',
           display: 'standalone',

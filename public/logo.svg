@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <rect x="0" y="0" width="1024" height="1024" fill="#1f2328"/>
+  <!-- horizon glow -->
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#26303a"/><stop offset="1" stop-color="#1b1f24"/></linearGradient>
+  </defs>
+  <rect x="0" y="0" width="1024" height="1024" fill="url(#sky)"/>
+  <!-- flight path: from the seat, climbing away -->
+  <path d="M 360 640 C 470 640, 560 560, 640 430 S 760 250, 820 220" fill="none" stroke="#e23ad8" stroke-width="34" stroke-linecap="round" stroke-dasharray="38 40"/>
+  <!-- airplane, top view, climbing to the upper right -->
+  <g transform="translate(826 210) rotate(52) scale(1.25)" fill="#2fd7f5">
+    <path d="M0,-88 C10,-88 13,-70 13,-52 L13,-14 L92,10 L92,28 L13,14 L11,58 L36,74 L36,88 L0,80 L-36,88 L-36,74 L-11,58 L-13,14 L-92,28 L-92,10 L-13,-14 L-13,-52 C-13,-70 -10,-88 0,-88 Z"/>
+  </g>
+  <!-- chair, side view -->
+  <g fill="none" stroke="#e9edf0" stroke-width="44" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M 230 330 L 268 640"/>          <!-- back -->
+    <path d="M 268 640 L 470 640"/>          <!-- seat -->
+    <path d="M 296 640 L 262 820"/>          <!-- rear leg -->
+    <path d="M 450 640 L 478 820"/>          <!-- front leg -->
+  </g>
+</svg>

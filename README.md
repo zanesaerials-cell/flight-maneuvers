@@ -1,4 +1,4 @@
-# Flight Maneuver Visualizer
+# Chair Flight
 
 Shows each Private Pilot ACS maneuver flown to the standard, for a specific airplane. Each maneuver has four synced views:
 
