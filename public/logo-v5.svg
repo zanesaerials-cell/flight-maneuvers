@@ -7,21 +7,37 @@
     <radialGradient id="glowRed"><stop offset="0" stop-color="#ffd0c8" stop-opacity="1"/><stop offset="0.14" stop-color="#ff5547" stop-opacity="0.75"/><stop offset="0.38" stop-color="#f2342a" stop-opacity="0.3"/><stop offset="0.7" stop-color="#e0261b" stop-opacity="0.08"/><stop offset="1" stop-color="#e0261b" stop-opacity="0"/></radialGradient>
     <radialGradient id="coreGreen"><stop offset="0" stop-color="#ffffff"/><stop offset="0.45" stop-color="#d6ffe6"/><stop offset="1" stop-color="#3cf08a"/></radialGradient>
     <radialGradient id="coreRed"><stop offset="0" stop-color="#ffffff"/><stop offset="0.45" stop-color="#ffe0dc"/><stop offset="1" stop-color="#ff5547"/></radialGradient>
+    <filter id="glowWide" filterUnits="userSpaceOnUse" x="-300" y="250" width="1700" height="600"><feGaussianBlur stdDeviation="22"/></filter>
+    <filter id="glowNear" filterUnits="userSpaceOnUse" x="-300" y="250" width="1700" height="600"><feGaussianBlur stdDeviation="7"/></filter>
+    <clipPath id="outboard"><path d="M -200 300 L 101 300 L 101 500 C 95 516 93 532 95 552 L 101 760 L -200 760 Z"/></clipPath>
   </defs>
   <rect x="0" y="0" width="1024" height="1024" fill="url(#bg)"/>
 
+  <g transform="translate(512 548) scale(0.82) translate(-512 -548)">
   <!-- Wings: tapered toward the tip, blended winglets, a little dihedral -->
   <g id="wing">
-    <path d="M 336 578 L 166 534 C 134 526 124 512 122 486 L 117 430 C 115 414 94 414 93 430 L 88 498 C 84 556 112 580 158 590 L 336 664 Z" fill="url(#wingShade)"/>
-    <path d="M 336 583 L 168 539 C 138 531 127 516 125 488 L 121 440" fill="none" stroke="#ffffff" stroke-width="6" stroke-linecap="round" opacity="0.95"/>
+    <path d="M 336 578 L 168 534 C 140 527 127 515 122 494 L 109 458 L 100 494 C 92 546 114 580 158 590 L 336 664 Z" fill="url(#wingShade)"/>
+    <path d="M 336 583 L 170 539 C 142 532 129 519 124 498 L 112 466" fill="none" stroke="#ffffff" stroke-width="5" stroke-linecap="round" opacity="0.95"/>
     <path d="M 336 650 L 160 580" fill="none" stroke="#9aa6b1" stroke-width="4" stroke-linecap="round" opacity="0.6"/>
   </g>
   <use href="#wing" transform="translate(1024 0) scale(-1 1)"/>
-  <!-- Nav lights on the winglet roots, glowing; green is the right wing, on the viewer's left from the front -->
-  <circle cx="94" cy="520" r="105" fill="url(#glowGreen)"/>
-  <circle cx="930" cy="520" r="105" fill="url(#glowRed)"/>
-  <circle cx="94" cy="520" r="14" fill="url(#coreGreen)"/>
-  <circle cx="930" cy="520" r="14" fill="url(#coreRed)"/>
+  <!-- Nav lights: slim bands on the outboard edge, glowing outward. Green is the right wing, on the viewer's left from the front. -->
+  <g>
+    <g clip-path="url(#outboard)">
+      <path d="M 100 500 C 95 516 93 532 95 548" fill="none" stroke="#2ef07f" stroke-width="80" stroke-linecap="round" opacity="0.6" filter="url(#glowWide)"/>
+      <path d="M 100 500 C 95 516 93 532 95 548" fill="none" stroke="#2ef07f" stroke-width="30" stroke-linecap="round" opacity="1" filter="url(#glowNear)"/>
+    </g>
+    <path d="M 100 500 C 95 516 93 532 95 548" fill="none" stroke="#2ef07f" stroke-width="8" stroke-linecap="round"/>
+    <path d="M 100 500 C 95 516 93 532 95 548" fill="none" stroke="#eafff2" stroke-width="3" stroke-linecap="round"/>
+  </g>
+  <g transform="translate(1024 0) scale(-1 1)">
+    <g clip-path="url(#outboard)">
+      <path d="M 100 500 C 95 516 93 532 95 548" fill="none" stroke="#ff3b30" stroke-width="80" stroke-linecap="round" opacity="0.6" filter="url(#glowWide)"/>
+      <path d="M 100 500 C 95 516 93 532 95 548" fill="none" stroke="#ff3b30" stroke-width="30" stroke-linecap="round" opacity="1" filter="url(#glowNear)"/>
+    </g>
+    <path d="M 100 500 C 95 516 93 532 95 548" fill="none" stroke="#ff3b30" stroke-width="8" stroke-linecap="round"/>
+    <path d="M 100 500 C 95 516 93 532 95 548" fill="none" stroke="#fff0ee" stroke-width="3" stroke-linecap="round"/>
+  </g>
 
   <!-- Rear legs (further away, a shade darker) -->
   <path d="M 398 640 L 384 846 Q 383 858 395 858 L 412 858 Q 422 858 422 846 L 432 640 Z" fill="#b9c2ca"/>
@@ -47,4 +63,5 @@
   <!-- Front legs, splayed -->
   <path d="M 304 632 L 262 872 Q 260 886 274 886 L 304 886 Q 316 886 318 874 L 360 636 Z" fill="url(#plastic)"/>
   <path d="M 720 632 L 762 872 Q 764 886 750 886 L 720 886 Q 708 886 706 874 L 664 636 Z" fill="url(#plastic)"/>
+  </g>
 </svg>

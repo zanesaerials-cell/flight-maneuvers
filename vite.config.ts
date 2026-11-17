@@ -21,7 +21,7 @@ export default defineConfig(({ mode }) => ({
       // and a new version is picked up the next time it is opened online.
       VitePWA({
         registerType: 'autoUpdate',
-        includeAssets: ['apple-touch-icon-v4.png', 'logo-v4.svg', 'favicon-32-v4.png'],
+        includeAssets: ['apple-touch-icon-v5.png', 'logo-v5.svg', 'favicon-32-v5.png'],
         manifest: {
           name: 'Chair Flight',
           short_name: 'Chair Flight',
@@ -30,9 +30,9 @@ export default defineConfig(({ mode }) => ({
           background_color: '#1f2328',
           display: 'standalone',
           icons: [
-            { src: 'icon-192-v4.png', sizes: '192x192', type: 'image/png' },
-            { src: 'icon-512-v4.png', sizes: '512x512', type: 'image/png' },
-            { src: 'icon-maskable-512-v4.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+            { src: 'icon-192-v5.png', sizes: '192x192', type: 'image/png' },
+            { src: 'icon-512-v5.png', sizes: '512x512', type: 'image/png' },
+            { src: 'icon-maskable-512-v5.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
           ],
         },
         workbox: {
