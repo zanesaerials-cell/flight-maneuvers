@@ -124,6 +124,6 @@ For study and briefing only. The POH/AFM and your CFI govern.
 
 ## Beta features
 
-- **Report or suggest:** a button on every page. Reports carry the airplane, section, maneuver, step, time, camera, link, app version and device. To receive them by email, set `VITE_FEEDBACK_EMAIL` in Vercel (Project → Settings → Environment Variables) and redeploy; otherwise testers can open a GitHub issue or copy the report.
+- **Report or suggest:** a button on every page. Reports carry the airplane, section, maneuver, step, time, camera, link, app version and device. Reports go by email to zane.harris@central.aero (set `VITE_FEEDBACK_EMAIL` in Vercel to change it); testers can also open a GitHub issue or copy the report.
 - **Offline:** the app installs a service worker. After the first visit it works offline; each airplane's model is kept once it has been viewed. New versions are picked up the next time the app is opened online.
 - **Performance:** the 3D code loads only when a maneuver opens; phones render at up to 1.5× and every device drops to 1× if the frame rate sags. The C172S model no longer includes cockpit detail that cannot be seen from outside (4.2 MB → 1.4 MB).

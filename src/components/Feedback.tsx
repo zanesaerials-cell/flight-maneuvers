@@ -8,8 +8,8 @@ import { playback } from '../store/playback';
  * issue; copying the text works everywhere as a fallback.
  */
 
-// Set VITE_FEEDBACK_EMAIL in Vercel (Project → Settings → Environment Variables) to receive reports by email.
-const EMAIL: string = import.meta.env.VITE_FEEDBACK_EMAIL ?? '';
+// Where reports go. VITE_FEEDBACK_EMAIL in Vercel (Project → Settings → Environment Variables) overrides it.
+const EMAIL: string = import.meta.env.VITE_FEEDBACK_EMAIL || 'zane.harris@central.aero';
 const REPO = 'zanesaerials-cell/flight-maneuvers';
 declare const __APP_VERSION__: string;
 
