@@ -49,6 +49,8 @@ export interface Step {
   id: string;
   title: string;
   detail: string[];
+  /** Words said aloud during this step, from the school's guide. */
+  callouts?: string[];
   start: number;
   end: number;
 }

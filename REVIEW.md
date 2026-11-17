@@ -151,6 +151,11 @@ Flown at each airplane's airwork altitude, heading 360°, in this order:
 
 **check:** two 90° turns vs one 180°; 30° bank; radio-call wording.
 
+## New from the school's C172S guide — awaiting review
+
+- **Verbal callouts (C172S):** shown as “Say” lines in the step where they happen. Normal takeoff: “Runway 22”, “Gauges green, airspeed alive”, “Rotate”. Short field: “Runway 22”, “Gauges green”, “Airspeed alive”, “Rotate”, “50, Vx, flaps 10”, “200, Vy, flaps 0”. Soft field: “Runway 22”, “Gauges green, airspeed alive”, “Vx, climb”, **“300, Vy, flaps 0”** (the guide says 200; the app raises flaps at 300 ft per the CFIs).
+- **Recovery From Unusual Flight Attitudes (C172S and P-Mentor, Private, PA.VIII.E):** nose high (17° up, 30° bank, airspeed decaying to ~65) → full power, nose to the horizon, wings level; nose low (11° down, 45° bank, airspeed building to ~120) → power idle, wings level first, then nose up. **check:** attitudes and speeds.
+
 ## 3D models
 
 - **DA42** (helijah, CC BY 4.0) is rigged by `tools/prepare-da42-model.mjs`:

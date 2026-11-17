@@ -28,6 +28,7 @@ export function StepsPanel({ run, t, source }: { run: ManeuverRun; t: number; so
               {state === 'now' && (
                 <ul className="step-detail">
                   {s.detail.map((d, k) => <li key={k}>{d}</li>)}
+                  {s.callouts?.map((c) => <li key={c} className="callout"><span className="callout-tag">Say</span><q>{c}</q></li>)}
                 </ul>
               )}
             </li>

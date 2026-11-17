@@ -151,6 +151,8 @@ export interface AircraftProfile {
     preManeuver: string[];
   };
   model: { url: string; credit: string; creditUrl: string } | null;
+  /** Verbal callouts from the school's guide, by maneuver id and step id. */
+  callouts?: Record<string, Record<string, string[]>>;
   multi?: MultiSettings;
   name: string;
   shortName: string;
@@ -199,6 +201,12 @@ export const C172S: AircraftProfile = {
     cruiseSetup: 'mixture as set for the altitude',
     slipNote: 'C172S POH: avoid slips with more than 20° of flaps.',
     preManeuver: ['Fuel selector BOTH', 'Mixture set for the altitude (rich below 3,000 ft)', 'Landing light ON', 'Seatbelts fastened, loose items stowed', 'Engine instruments in the green'],
+  },
+  // Callouts from the school's C172S Maneuver Guide (Rev 11/02/2024); runway called for KCXW 22.
+  callouts: {
+    'normal-takeoff': { lineup: ['Runway 22'], roll: ['Gauges green, airspeed alive'], rotate: ['Rotate'] },
+    'short-takeoff': { lineup: ['Runway 22'], roll: ['Gauges green', 'Airspeed alive'], rotate: ['Rotate'], obstacle: ['50, Vx, flaps 10'], accelerate: ['200, Vy, flaps 0'] },
+    'soft-takeoff': { taxi: ['Runway 22'], roll: ['Gauges green, airspeed alive'], climb: ['Vx, climb'], flaps: ['300, Vy, flaps 0'] },
   },
   model: {
     url: 'models/c172s.glb',

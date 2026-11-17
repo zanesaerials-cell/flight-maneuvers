@@ -19,6 +19,7 @@ import {
   buildEngineFailureAfterLiftoff, buildOeiLanding, buildOeiManeuvering, buildRejectedTakeoff, buildVmcDemo,
 } from './multi';
 import { buildClearingTurns } from './clearing';
+import { buildUnusualAttitudes } from './unusual';
 import { certInfo } from './standards';
 
 type Builder = (ac: AircraftProfile, cert: Cert) => ManeuverRun;
@@ -45,6 +46,7 @@ const TL = 'Takeoffs, landings and go-arounds';
 const PERF = 'Performance and ground reference';
 const SLOW = 'Slow flight and stalls';
 const EMER = 'Emergency operations';
+const INST = 'Basic instrument maneuvers';
 const ME = 'Multi-engine operations';
 
 /** Every maneuver, in checkride order. */
@@ -78,6 +80,8 @@ export const MANEUVERS: ManeuverDef[] = [
   { id: 'cross-control-stall', title: 'Cross-Controlled Stall (Demonstration)', group: SLOW, summary: 'The skidding base-to-final turn.', build: buildCrossControlStall, certs: ['cfi'], needs: 'perf' },
   { id: 'elevator-trim-stall', title: 'Elevator Trim Stall (Demonstration)', group: SLOW, summary: 'Go-around power with approach trim.', build: buildElevatorTrimStall, certs: ['cfi'], needs: 'perf' },
 
+  { id: 'unusual-attitudes', title: 'Recovery From Unusual Flight Attitudes', group: INST, summary: 'Nose high and nose low: recognize and recover.', build: buildUnusualAttitudes, certs: ['private'], needs: 'perf' },
+
   { id: 'emergency-descent', title: 'Emergency Descent', group: EMER, summary: 'Idle, steep descending turn, controlled level-off.', build: buildEmergencyDescent, certs: ALL, needs: 'perf' },
   { id: 'emergency-approach', title: 'Emergency Approach and Landing', group: EMER, summary: 'Engine failure: best glide, best field, checklist, approach.', build: buildEmergencyApproach, certs: SE, needs: 'perf' },
   { id: 'engine-failure-takeoff-roll', title: 'Engine Failure During Takeoff Before Vmc', group: ME, summary: 'Both power levers idle, stop on the runway.', build: buildRejectedTakeoff, certs: ['multi'], needs: 'perf' },
@@ -99,5 +103,7 @@ export function buildManeuver(m: ManeuverDef, ac: AircraftProfile, cert: Cert): 
   const own = run.acsCode.split('.')[0];
   // Private and Commercial share area and task letters for the common tasks; instructor demonstrations keep their own code.
   const code = own === 'AI' ? run.acsCode : run.acsCode.replace(/^[A-Z]+/, info.prefix);
-  return { ...run, acsCode: code, acsDoc: own === 'AI' ? 'Flight Instructor ACS' : info.acsDoc };
+  const said = ac.callouts?.[m.id];
+  const steps = said ? run.steps.map((s) => (said[s.id] ? { ...s, callouts: said[s.id] } : s)) : run.steps;
+  return { ...run, steps, acsCode: code, acsDoc: own === 'AI' ? 'Flight Instructor ACS' : info.acsDoc };
 }
