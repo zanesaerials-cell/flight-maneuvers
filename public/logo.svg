@@ -1,21 +1,40 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
-  <rect x="0" y="0" width="1024" height="1024" fill="#1f2328"/>
-  <!-- horizon glow -->
   <defs>
-    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#26303a"/><stop offset="1" stop-color="#1b1f24"/></linearGradient>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a3440"/><stop offset="1" stop-color="#1a1e23"/></linearGradient>
+    <linearGradient id="plastic" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#e3e8ec"/></linearGradient>
+    <linearGradient id="wingL" x1="1" y1="0" x2="0" y2="0"><stop offset="0" stop-color="#eef2f5"/><stop offset="1" stop-color="#cfd7de"/></linearGradient>
+    <linearGradient id="wingR" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#eef2f5"/><stop offset="1" stop-color="#cfd7de"/></linearGradient>
   </defs>
-  <rect x="0" y="0" width="1024" height="1024" fill="url(#sky)"/>
-  <!-- flight path: from the seat, climbing away -->
-  <path d="M 360 640 C 470 640, 560 560, 640 430 S 760 250, 820 220" fill="none" stroke="#e23ad8" stroke-width="34" stroke-linecap="round" stroke-dasharray="38 40"/>
-  <!-- airplane, top view, climbing to the upper right -->
-  <g transform="translate(826 210) rotate(52) scale(1.25)" fill="#2fd7f5">
-    <path d="M0,-88 C10,-88 13,-70 13,-52 L13,-14 L92,10 L92,28 L13,14 L11,58 L36,74 L36,88 L0,80 L-36,88 L-36,74 L-11,58 L-13,14 L-92,28 L-92,10 L-13,-14 L-13,-52 C-13,-70 -10,-88 0,-88 Z"/>
+  <rect x="0" y="0" width="1024" height="1024" fill="url(#bg)"/>
+
+  <!-- Wings: from under the seat, out to each side with a little dihedral -->
+  <path d="M 330 592 L 100 536 Q 66 530 66 554 Q 66 578 100 582 L 330 648 Z" fill="url(#wingL)"/>
+  <path d="M 694 592 L 924 536 Q 958 530 958 554 Q 958 578 924 582 L 694 648 Z" fill="url(#wingR)"/>
+  <circle cx="80" cy="558" r="13" fill="#33d17a"/>
+  <circle cx="944" cy="558" r="13" fill="#ff4b4b"/>
+
+  <!-- Rear legs (further away, a shade darker) -->
+  <path d="M 398 640 L 384 846 Q 383 858 395 858 L 412 858 Q 422 858 422 846 L 432 640 Z" fill="#b9c2ca"/>
+  <path d="M 626 640 L 640 846 Q 641 858 629 858 L 612 858 Q 602 858 602 846 L 592 640 Z" fill="#b9c2ca"/>
+
+  <!-- Backrest with the classic vertical slots -->
+  <path d="M 336 290 Q 336 222 404 216 Q 512 204 620 216 Q 688 222 688 290 L 668 548 L 356 548 Z" fill="url(#plastic)"/>
+  <g fill="#232a32">
+    <rect x="418" y="300" width="26" height="170" rx="13"/>
+    <rect x="473" y="294" width="26" height="182" rx="13"/>
+    <rect x="525" y="294" width="26" height="182" rx="13"/>
+    <rect x="580" y="300" width="26" height="170" rx="13"/>
   </g>
-  <!-- chair, side view -->
-  <g fill="none" stroke="#e9edf0" stroke-width="44" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M 230 330 L 268 640"/>          <!-- back -->
-    <path d="M 268 640 L 470 640"/>          <!-- seat -->
-    <path d="M 296 640 L 262 820"/>          <!-- rear leg -->
-    <path d="M 450 640 L 478 820"/>          <!-- front leg -->
-  </g>
+
+  <!-- Armrests sweeping down and out to the front of the seat -->
+  <path d="M 340 400 Q 286 410 278 470 Q 274 530 292 588 L 340 588 Q 324 530 330 476 Q 336 440 352 432 Z" fill="url(#plastic)"/>
+  <path d="M 684 400 Q 738 410 746 470 Q 750 530 732 588 L 684 588 Q 700 530 694 476 Q 688 440 672 432 Z" fill="url(#plastic)"/>
+
+  <!-- Seat front edge -->
+  <path d="M 284 568 Q 512 548 740 568 Q 752 570 750 590 L 744 616 Q 742 628 728 628 Q 512 612 296 628 Q 282 628 280 616 L 274 590 Q 272 570 284 568 Z" fill="#ffffff"/>
+  <path d="M 296 628 Q 512 612 728 628 L 722 642 Q 512 628 302 642 Z" fill="#cdd4da"/>
+
+  <!-- Front legs, splayed -->
+  <path d="M 304 632 L 262 872 Q 260 886 274 886 L 304 886 Q 316 886 318 874 L 360 636 Z" fill="url(#plastic)"/>
+  <path d="M 720 632 L 762 872 Q 764 886 750 886 L 720 886 Q 708 886 706 874 L 664 636 Z" fill="url(#plastic)"/>
 </svg>
