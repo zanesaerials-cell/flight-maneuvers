@@ -49,7 +49,7 @@ function Home({ ac, cert }: { ac?: AircraftProfile; cert?: Cert }) {
     <main className="home">
       <header className="home-head">
         <h1 className="brand"><img src="/logo-v6.svg" alt="" width="64" height="64" />Chair Flight</h1>
-        <p>Watch each checkride maneuver flown to the standard — outside view, PFD and your hands and feet, step by step, for the airplane you fly.</p>
+        <p>Chair-fly what every maneuver should look like before you're in the expensive airplane: the outside view, the PFD and every control input, step by step.</p>
       </header>
 
       <section className="pick">
